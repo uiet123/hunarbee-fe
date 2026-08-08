@@ -9,10 +9,10 @@ export const SITE = {
 } as const;
 
 export const NAV_LINKS = [
-  { label: "Programs", href: "#programs" },
-  { label: "Process", href: "#process" },
-  { label: "Community", href: "#community" },
-  { label: "FAQ", href: "#faq" },
+  { label: "Programs", href: "/#programs" },
+  { label: "Process", href: "/#process" },
+  { label: "Community", href: "/#community" },
+  { label: "FAQ", href: "/#faq" },
 ] as const;
 
 export const STATS = [
@@ -205,15 +205,15 @@ export const FAQS = [
 
 export const FOOTER_LINKS = {
   quick: [
-    { label: "Why Hunarbee", href: "#why" },
-    { label: "Programs", href: "#programs" },
-    { label: "Process", href: "#process" },
-    { label: "FAQ", href: "#faq" },
+    { label: "Why Hunarbee", href: "/#why" },
+    { label: "Programs", href: "/#programs" },
+    { label: "Process", href: "/#process" },
+    { label: "FAQ", href: "/#faq" },
   ],
   programs: [
-    { label: "Frontend", href: "#programs" },
-    { label: "Backend", href: "#programs" },
-    { label: "Full Stack", href: "#programs" },
+    { label: "Frontend", href: "/#programs" },
+    { label: "Backend", href: "/#programs" },
+    { label: "Full Stack", href: "/#programs" },
   ],
   social: [
     { label: "LinkedIn", href: "#" },

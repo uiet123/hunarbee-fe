@@ -65,13 +65,13 @@ export function HeroSection() {
           <FadeIn delay={0.24}>
             <div className="mt-9 flex flex-wrap items-center gap-3">
               <Button size="lg" asChild>
-                <Link href="#apply">
+                <Link href="/apply">
                   Apply for Internship
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
               <Button size="lg" variant="secondary" asChild>
-                <Link href="#programs">Explore Programs</Link>
+                <Link href="/#programs">Explore Programs</Link>
               </Button>
             </div>
           </FadeIn>
@@ -80,7 +80,7 @@ export function HeroSection() {
         <FadeIn delay={0.2} className="relative lg:-mr-4 xl:-mr-8">
           <div className="relative mx-auto w-full max-w-xl lg:max-w-none lg:scale-105 xl:scale-110 lg:origin-left">
             <div className="absolute inset-4 rounded-[28px] bg-gradient-to-br from-honey/25 via-transparent to-navy/10 blur-2xl" aria-hidden />
-            <div className="relative overflow-hidden rounded-[28px] border border-[var(--border)] bg-white/50 shadow-[var(--shadow-lift)] backdrop-blur-sm">
+            <div className="relative overflow-hidden rounded-[28px] border border-[var(--border)] bg-surface-elevated/70 shadow-[var(--shadow-lift)] backdrop-blur-sm">
               <Image
                 src="/product_visual.png"
                 alt="Hunarbee product dashboard preview"

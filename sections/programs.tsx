@@ -13,7 +13,7 @@ export function ProgramsSection() {
   return (
     <Section
       id="programs"
-      className="bg-cream/50"
+      className="bg-cream/35"
       eyebrow="Internship Programs"
       title="Choose the track that fits your ambition"
       description="Focused programs with live projects, mentor reviews, and a certificate that signals readiness."
@@ -76,7 +76,7 @@ export function ProgramsSection() {
                   variant={index === 1 ? "primary" : "secondary"}
                   asChild
                 >
-                  <Link href="#apply">
+                  <Link href="/apply">
                     Apply now
                     <ArrowRight className="h-4 w-4" />
                   </Link>

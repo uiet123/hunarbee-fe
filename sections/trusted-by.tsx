@@ -10,7 +10,7 @@ export function TrustedBySection() {
   return (
     <Section
       id="trusted"
-      className="border-y border-[var(--border)] bg-cream/60 py-16 md:py-20"
+      className="border-y border-[var(--border)] bg-cream/40 py-16 md:py-20"
     >
       <FadeIn>
         <div className="mb-10 flex items-center justify-center gap-3">

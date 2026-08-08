@@ -20,7 +20,7 @@ export function FaqSection() {
       description="Straight answers to the questions students ask most."
     >
       <FadeIn>
-        <div className="mx-auto max-w-2xl rounded-2xl border border-[var(--border)] bg-white/85 px-5 shadow-[var(--shadow-soft)] sm:px-8">
+        <div className="mx-auto max-w-2xl rounded-2xl border border-[var(--border)] bg-surface-elevated/90 px-5 shadow-[var(--shadow-soft)] sm:px-8">
           <Accordion type="single" collapsible defaultValue="item-0">
             {FAQS.map((faq, index) => (
               <AccordionItem key={faq.question} value={`item-${index}`}>

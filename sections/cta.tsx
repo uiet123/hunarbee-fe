@@ -43,7 +43,7 @@ export function CtaSection() {
           </p>
           <div className="mt-10">
             <Button size="xl" asChild>
-              <Link href="mailto:hello@hunarbee.com">
+              <Link href="/apply">
                 Apply Now
                 <ArrowRight className="h-5 w-5" />
               </Link>

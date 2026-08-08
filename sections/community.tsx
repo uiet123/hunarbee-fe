@@ -27,7 +27,7 @@ export function CommunitySection() {
   return (
     <Section
       id="community"
-      className="bg-cream/60"
+      className="bg-cream/35"
       eyebrow="Community"
       title="Learn with people who ship"
       description="Join spaces where peers, mentors, and alumni share opportunities, feedback, and momentum."

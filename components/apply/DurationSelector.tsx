@@ -1,0 +1,97 @@
+"use client";
+
+import { Check } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  DURATION_PLANS,
+  formatInr,
+  type ApplicationFormErrors,
+  type DurationPlanId,
+} from "@/lib/apply";
+import { cn } from "@/lib/utils";
+
+interface DurationSelectorProps {
+  value: DurationPlanId | null;
+  error?: string;
+  onChange: (id: DurationPlanId) => void;
+}
+
+/** Single-select pricing / duration plans. */
+export function DurationSelector({
+  value,
+  error,
+  onChange,
+}: DurationSelectorProps) {
+  return (
+    <section className="space-y-5">
+      <div>
+        <h2 className="font-[family-name:var(--font-display)] text-xl font-bold text-navy">
+          Choose Your Duration
+        </h2>
+        <p className="mt-1 text-sm text-slate">
+          Pick the plan that matches your learning pace.
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2" role="radiogroup" aria-label="Duration plan">
+        {DURATION_PLANS.map((plan) => {
+          const selected = value === plan.id;
+
+          return (
+            <motion.button
+              key={plan.id}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              whileHover={{ y: -3 }}
+              whileTap={{ scale: 0.99 }}
+              onClick={() => onChange(plan.id)}
+              className={cn(
+                "relative flex h-full flex-col rounded-2xl border bg-surface-elevated/95 p-5 text-left shadow-[var(--shadow-soft)] transition-[border-color,box-shadow] duration-300",
+                selected
+                  ? "border-honey/55 shadow-[0_16px_40px_rgba(245,184,0,0.18)]"
+                  : "border-navy/10 hover:border-honey/35 hover:shadow-[var(--shadow-lift)]",
+                plan.recommended && !selected && "border-honey/30",
+                error && !value && "border-red-300"
+              )}
+            >
+              {plan.recommended ? (
+                <span className="absolute -top-2.5 right-4 rounded-full bg-honey px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-navy shadow-[0_4px_12px_rgba(245,184,0,0.35)]">
+                  Recommended
+                </span>
+              ) : null}
+
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-[family-name:var(--font-display)] text-lg font-bold text-navy">
+                    {plan.label}
+                  </p>
+                  <p className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight text-navy">
+                    {formatInr(plan.priceInr)}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    "mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors",
+                    selected
+                      ? "border-honey bg-honey text-navy"
+                      : "border-navy/20 bg-surface text-transparent"
+                  )}
+                  aria-hidden
+                >
+                  <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                </span>
+              </div>
+            </motion.button>
+          );
+        })}
+      </div>
+
+      {error ? (
+        <p className="text-xs font-medium text-red-600" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </section>
+  );
+}

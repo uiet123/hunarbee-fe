@@ -25,8 +25,8 @@ const ICONS: Record<string, LucideIcon> = {
 
 /** Soft alternating washes — honey & light blue. */
 const WHY_CARD_BGS = [
-  "bg-gradient-to-br from-[#fff8e6] via-[#fffbf0] to-[#ffe8a8]",
-  "bg-gradient-to-br from-[#e8f0fb] via-[#f2f6fc] to-[#d5e4f7]",
+  "bg-gradient-to-br from-[#f3e9c8] via-[#f6f0dc] to-[#e8d59a]",
+  "bg-gradient-to-br from-[#d5e0ef] via-[#e4ebf5] to-[#c5d4e8]",
 ] as const;
 
 /** Feature grid explaining Hunarbee's value props. */

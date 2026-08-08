@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { ArrowLeft, Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { NAV_LINKS, SITE } from "@/lib/constants";
@@ -11,6 +12,8 @@ import { cn } from "@/lib/utils";
 
 /** Sticky glass navigation with mobile drawer. */
 export function Header() {
+  const pathname = usePathname();
+  const isApply = pathname?.startsWith("/apply");
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -32,8 +35,8 @@ export function Header() {
     <header
       className={cn(
         "fixed inset-x-0 top-0 z-50 border-b transition-[background-color,border-color,box-shadow] duration-300",
-        scrolled || open
-          ? "border-navy/[0.06] bg-[rgba(238,243,250,0.92)] shadow-[0_8px_24px_rgba(11,18,32,0.04)] backdrop-blur-xl"
+        scrolled || open || isApply
+          ? "border-navy/[0.06] bg-[rgba(217,226,238,0.92)] shadow-[0_8px_24px_rgba(11,18,32,0.05)] backdrop-blur-xl"
           : "border-transparent bg-transparent"
       )}
     >
@@ -62,12 +65,23 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
-          <Button variant="secondary" size="md" className="text-base" asChild>
-            <Link href="#programs">Explore</Link>
-          </Button>
-          <Button size="md" className="text-base" asChild>
-            <Link href="#apply">Apply for Internship</Link>
-          </Button>
+          {isApply ? (
+            <Button variant="secondary" size="md" className="text-base" asChild>
+              <Link href="/">
+                <ArrowLeft className="h-4 w-4" />
+                Home
+              </Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="secondary" size="md" className="text-base" asChild>
+                <Link href="/#programs">Explore</Link>
+              </Button>
+              <Button size="md" className="text-base" asChild>
+                <Link href="/apply">Apply for Internship</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         <button
@@ -86,7 +100,7 @@ export function Header() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="border-t border-[var(--border)] bg-[rgba(238,243,250,0.98)] backdrop-blur-xl md:hidden"
+            className="border-t border-[var(--border)] bg-[rgba(217,226,238,0.98)] backdrop-blur-xl md:hidden"
           >
             <nav className="flex flex-col gap-1 px-5 py-4" aria-label="Mobile">
               {NAV_LINKS.map((link) => (
@@ -100,16 +114,27 @@ export function Header() {
                 </Link>
               ))}
               <div className="mt-3 flex flex-col gap-2 pb-2">
-                <Button variant="secondary" asChild>
-                  <Link href="#programs" onClick={() => setOpen(false)}>
-                    Explore Programs
-                  </Link>
-                </Button>
-                <Button asChild>
-                  <Link href="#apply" onClick={() => setOpen(false)}>
-                    Apply for Internship
-                  </Link>
-                </Button>
+                {isApply ? (
+                  <Button variant="secondary" asChild>
+                    <Link href="/" onClick={() => setOpen(false)}>
+                      <ArrowLeft className="h-4 w-4" />
+                      Back to Home
+                    </Link>
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="secondary" asChild>
+                      <Link href="/#programs" onClick={() => setOpen(false)}>
+                        Explore Programs
+                      </Link>
+                    </Button>
+                    <Button asChild>
+                      <Link href="/apply" onClick={() => setOpen(false)}>
+                        Apply for Internship
+                      </Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </nav>
           </motion.div>
