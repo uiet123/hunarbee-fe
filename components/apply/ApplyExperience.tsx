@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Award,
@@ -22,22 +22,111 @@ import { TermsCheckbox } from "@/components/apply/TermsCheckbox";
 import {
   APPLY_BENEFITS,
   INITIAL_APPLICATION_FORM,
-  isApplicationFormComplete,
+  getPlanById,
+  getProgramById,
   validateApplicationForm,
   type ApplicationFormData,
   type ApplicationFormErrors,
+  type DurationPlanId,
 } from "@/lib/apply";
+import { ApiError, createPaymentOrder, fetchPricing, waitForPaymentSettlement } from "@/lib/api";
+import { openRazorpayCheckout } from "@/lib/razorpay";
+import { detectUserCountry } from "@/lib/geo";
+import { getCountryName, toE164Phone } from "@/lib/phone";
+import {
+  formatMoney,
+  getCurrencyForCountryIso,
+  type PricingCurrency,
+} from "@/lib/pricing";
 
 const BENEFIT_ICONS = [Briefcase, Compass, Award, FolderKanban] as const;
 
-/** Full frontend internship application experience. */
+type PaymentStatus = "idle" | "paid";
+
+/** Full frontend internship application experience with Razorpay checkout. */
 export function ApplyExperience() {
-  const router = useRouter();
   const [form, setForm] = useState<ApplicationFormData>(INITIAL_APPLICATION_FORM);
   const [errors, setErrors] = useState<ApplicationFormErrors>({});
   const [showErrors, setShowErrors] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [readyForPayment, setReadyForPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("idle");
+  const [preferredCurrency, setPreferredCurrency] =
+    useState<PricingCurrency>("INR");
+  const [currency, setCurrency] = useState<PricingCurrency>("INR");
+  const [pricingSource, setPricingSource] = useState<"live" | "fallback">(
+    "live"
+  );
+  const [countryName, setCountryName] = useState("India");
+  const [planPrices, setPlanPrices] = useState<Record<
+    DurationPlanId,
+    number
+  > | null>(null);
+  const [pricingError, setPricingError] = useState<string | null>(null);
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [paidReceipt, setPaidReceipt] = useState<{
+    paymentId: string;
+    amountMajor: number;
+    currency: PricingCurrency;
+    programTitle: string;
+    planLabel: string;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    detectUserCountry().then((location) => {
+      if (cancelled) return;
+
+      setCountryName(location.countryName);
+      const nextCurrency = getCurrencyForCountryIso(location.countryIso);
+      setPreferredCurrency(nextCurrency);
+      setCurrency(nextCurrency);
+
+      setForm((prev) => ({
+        ...prev,
+        countryIso: location.countryIso || prev.countryIso,
+      }));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPricingLoading(true);
+    setPricingError(null);
+    setPlanPrices(null);
+
+    fetchPricing(preferredCurrency)
+      .then((pricing) => {
+        if (cancelled) return;
+        const nextCurrency = (pricing.currency as PricingCurrency) || preferredCurrency;
+        setPlanPrices(pricing.plans);
+        setCurrency(nextCurrency);
+        setPricingSource(pricing.source);
+        setPricingError(null);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setPlanPrices(null);
+        setPricingSource("fallback");
+        setPricingError(
+          error instanceof ApiError
+            ? error.message
+            : "Unable to load live prices. Please try again."
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setPricingLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [preferredCurrency]);
 
   const update = <K extends keyof ApplicationFormData>(
     key: K,
@@ -45,6 +134,16 @@ export function ApplyExperience() {
   ) => {
     setForm((prev) => {
       const next = { ...prev, [key]: value };
+
+      if (key === "countryIso" && typeof value === "string") {
+        const nextCurrency = getCurrencyForCountryIso(value);
+        setPreferredCurrency(nextCurrency);
+        setCurrency(nextCurrency);
+        setCountryName(getCountryName(value));
+        // Reset number so dial code matches the new country cleanly
+        next.phone = "";
+      }
+
       if (showErrors) {
         setErrors(validateApplicationForm(next));
       }
@@ -52,12 +151,11 @@ export function ApplyExperience() {
     });
   };
 
-  const canContinue = useMemo(() => isApplicationFormComplete(form), [form]);
-
   const handleContinue = async () => {
     const nextErrors = validateApplicationForm(form);
     setShowErrors(true);
     setErrors(nextErrors);
+    setPaymentError(null);
 
     if (Object.keys(nextErrors).length > 0) {
       const firstKey = Object.keys(nextErrors)[0];
@@ -67,11 +165,111 @@ export function ApplyExperience() {
       return;
     }
 
+    const plan = getPlanById(form.durationId);
+    const program = getProgramById(form.programId);
+    if (!plan || !program || !form.programId || !form.durationId) {
+      setPaymentError("Please select a program and duration.");
+      return;
+    }
+
+    if (!planPrices) {
+      setPaymentError(
+        pricingError || "Live prices are still loading. Please wait a moment."
+      );
+      return;
+    }
+
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 700));
-    setLoading(false);
-    setReadyForPayment(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    const contact = toE164Phone(form.phone);
+
+    try {
+      const order = await createPaymentOrder({
+        durationId: form.durationId,
+        currency,
+        programId: form.programId,
+        applicantName: form.fullName.trim(),
+        applicantEmail: form.email.trim(),
+        applicantPhone: contact,
+        countryIso: form.countryIso,
+        occupation: form.occupation,
+        preferredBatch: form.preferredBatch,
+      });
+
+      await openRazorpayCheckout({
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: "Hunarbee",
+        description: `${program.title} · ${plan.label}`,
+        order_id: order.orderId,
+        ...(order.customerId ? { customer_id: order.customerId } : {}),
+        prefill: {
+          name: form.fullName.trim(),
+          email: form.email.trim(),
+          contact: order.contact || contact,
+        },
+        readonly: {
+          name: true,
+          email: true,
+          contact: true,
+        },
+        notes: {
+          programId: form.programId,
+          durationId: form.durationId,
+          preferredBatch: form.preferredBatch,
+          currency,
+          countryIso: form.countryIso,
+          phone: contact,
+        },
+        theme: { color: "#f5b800" },
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+            setPaymentError("Payment was cancelled. You can try again anytime.");
+          },
+        },
+        handler: async (response) => {
+          try {
+            const settled = await waitForPaymentSettlement(
+              response.razorpay_order_id
+            );
+
+            if (settled.status === "failed") {
+              setPaymentError("Payment failed. Please try again.");
+              return;
+            }
+
+            setPaidReceipt({
+              paymentId:
+                settled.paymentId || response.razorpay_payment_id,
+              amountMajor: settled.amountMajor,
+              currency: (settled.currency as PricingCurrency) || currency,
+              programTitle: program.title,
+              planLabel: plan.label,
+            });
+            setPaymentStatus("paid");
+            setPaymentError(null);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          } catch (error) {
+            setPaymentError(
+              error instanceof ApiError
+                ? error.message
+                : "Payment received but confirmation is pending. Contact support if enrollment does not appear."
+            );
+          } finally {
+            setLoading(false);
+          }
+        },
+      });
+    } catch (error) {
+      setLoading(false);
+      setPaymentError(
+        error instanceof ApiError
+          ? error.message
+          : "Unable to start payment. Please try again."
+      );
+    }
   };
 
   return (
@@ -80,9 +278,9 @@ export function ApplyExperience() {
 
       <div className="relative mx-auto max-w-[1280px] px-5 py-10 sm:px-8 sm:py-14">
         <AnimatePresence mode="wait">
-          {readyForPayment ? (
+          {paymentStatus === "paid" && paidReceipt ? (
             <motion.div
-              key="ready"
+              key="paid"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
@@ -94,28 +292,37 @@ export function ApplyExperience() {
                   <ShieldCheck className="h-7 w-7" />
                 </div>
                 <h2 className="mt-6 font-[family-name:var(--font-display)] text-2xl font-bold text-navy sm:text-3xl">
-                  You&apos;re almost there!
+                  Payment successful
                 </h2>
                 <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-slate">
-                  Review your details and continue to secure your internship
-                  enrollment.
+                  Your internship enrollment for{" "}
+                  <span className="font-semibold text-navy">
+                    {paidReceipt.programTitle}
+                  </span>{" "}
+                  ({paidReceipt.planLabel}) is confirmed.
                 </p>
+
+                <div className="mx-auto mt-6 max-w-sm space-y-2 rounded-2xl border border-navy/10 bg-surface px-4 py-4 text-left text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate">Amount paid</span>
+                    <span className="font-semibold text-navy">
+                      {formatMoney(paidReceipt.amountMajor, paidReceipt.currency)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate">Payment ID</span>
+                    <span className="break-all font-semibold text-navy">
+                      {paidReceipt.paymentId}
+                    </span>
+                  </div>
+                </div>
+
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-                  <Button
-                    size="lg"
-                    className="text-base"
-                    onClick={() => router.push("/apply/payment")}
-                  >
-                    Proceed to Payment
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="lg"
-                    variant="secondary"
-                    className="text-base"
-                    onClick={() => setReadyForPayment(false)}
-                  >
-                    Edit application
+                  <Button size="lg" className="text-base" asChild>
+                    <Link href="/">
+                      Back to Home
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
                   </Button>
                 </div>
               </div>
@@ -129,12 +336,10 @@ export function ApplyExperience() {
               transition={{ duration: 0.35 }}
               className="grid gap-8 lg:grid-cols-[minmax(240px,0.85fr)_minmax(0,1.2fr)] lg:items-start lg:gap-8"
             >
-              {/* Left — benefits / application info */}
               <FadeIn className="lg:sticky lg:top-32">
                 <BenefitsPanel />
               </FadeIn>
 
-              {/* Registration form + order summary stacked */}
               <div className="space-y-6 lg:space-y-8">
                 <FadeIn className="relative z-20 overflow-visible">
                   <div className="relative z-20 overflow-visible rounded-2xl border border-[var(--border)] bg-surface-elevated/95 p-5 shadow-[var(--shadow-soft)] backdrop-blur-sm sm:p-7">
@@ -163,6 +368,12 @@ export function ApplyExperience() {
                   <div className="rounded-2xl border border-[var(--border)] bg-surface-elevated/95 p-5 shadow-[var(--shadow-soft)] backdrop-blur-sm sm:p-7">
                     <DurationSelector
                       value={form.durationId}
+                      currency={currency}
+                      countryName={countryName}
+                      planPrices={planPrices}
+                      pricingLoading={pricingLoading}
+                      pricingError={pricingError}
+                      pricingSource={pricingSource}
                       error={errors.durationId}
                       onChange={(id) => update("durationId", id)}
                     />
@@ -177,10 +388,22 @@ export function ApplyExperience() {
                   />
                 </FadeIn>
 
+                {paymentError ? (
+                  <p
+                    className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+                    role="alert"
+                  >
+                    {paymentError}
+                  </p>
+                ) : null}
+
                 <OrderSummary
                   data={form}
-                  canContinue={canContinue}
-                  loading={loading}
+                  currency={currency}
+                  planPrices={planPrices}
+                  pricingLoading={pricingLoading}
+                  pricingSource={pricingSource}
+                  loading={loading || pricingLoading || !planPrices}
                   onContinue={handleContinue}
                 />
               </div>

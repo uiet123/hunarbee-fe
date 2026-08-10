@@ -1,3 +1,5 @@
+import { isSupportedCountryIso, isValidInternationalPhone } from "./phone";
+
 export type InternshipProgramId = "frontend" | "backend" | "fullstack";
 export type DurationPlanId = "1-month" | "3-months";
 
@@ -12,7 +14,6 @@ export interface DurationPlan {
   id: DurationPlanId;
   label: string;
   months: number;
-  priceInr: number;
   includes: string[];
   recommended?: boolean;
 }
@@ -20,10 +21,11 @@ export interface DurationPlan {
 export interface ApplicationFormData {
   fullName: string;
   email: string;
+  /** ISO 3166-1 alpha-2 from phone library (e.g. IN, GB). */
+  countryIso: string;
+  /** E.164 phone (e.g. +9198…). */
   phone: string;
   occupation: string;
-  state: string;
-  city: string;
   preferredBatch: string;
   programId: InternshipProgramId | null;
   durationId: DurationPlanId | null;
@@ -34,10 +36,9 @@ export type ApplicationFormErrors = Partial<
   Record<
     | "fullName"
     | "email"
+    | "countryIso"
     | "phone"
     | "occupation"
-    | "state"
-    | "city"
     | "preferredBatch"
     | "programId"
     | "durationId"
@@ -75,7 +76,6 @@ export const DURATION_PLANS: DurationPlan[] = [
     id: "1-month",
     label: "1 Month",
     months: 1,
-    priceInr: 499,
     includes: [
       "Guided learning",
       "Practical projects",
@@ -87,7 +87,6 @@ export const DURATION_PLANS: DurationPlan[] = [
     id: "3-months",
     label: "3 Months",
     months: 3,
-    priceInr: 999,
     recommended: true,
     includes: [
       "Guided learning",
@@ -103,45 +102,6 @@ export const OCCUPATIONS = [
   { value: "student", label: "Student" },
   { value: "fresher", label: "Fresher" },
   { value: "employee", label: "Employee" },
-] as const;
-
-export const INDIAN_STATES = [
-  "Andhra Pradesh",
-  "Arunachal Pradesh",
-  "Assam",
-  "Bihar",
-  "Chhattisgarh",
-  "Goa",
-  "Gujarat",
-  "Haryana",
-  "Himachal Pradesh",
-  "Jharkhand",
-  "Karnataka",
-  "Kerala",
-  "Madhya Pradesh",
-  "Maharashtra",
-  "Manipur",
-  "Meghalaya",
-  "Mizoram",
-  "Nagaland",
-  "Odisha",
-  "Punjab",
-  "Rajasthan",
-  "Sikkim",
-  "Tamil Nadu",
-  "Telangana",
-  "Tripura",
-  "Uttar Pradesh",
-  "Uttarakhand",
-  "West Bengal",
-  "Andaman and Nicobar Islands",
-  "Chandigarh",
-  "Dadra and Nagar Haveli and Daman and Diu",
-  "Delhi",
-  "Jammu and Kashmir",
-  "Ladakh",
-  "Lakshadweep",
-  "Puducherry",
 ] as const;
 
 export const APPLY_BENEFITS = [
@@ -166,10 +126,9 @@ export const APPLY_BENEFITS = [
 export const INITIAL_APPLICATION_FORM: ApplicationFormData = {
   fullName: "",
   email: "",
+  countryIso: "IN",
   phone: "",
   occupation: "",
-  state: "",
-  city: "",
   preferredBatch: "",
   programId: null,
   durationId: "3-months",
@@ -209,10 +168,6 @@ export function getTomorrowBatchOption(from: Date = new Date()) {
   };
 }
 
-export function formatInr(amount: number): string {
-  return `₹${amount.toLocaleString("en-IN")}`;
-}
-
 export function getProgramById(id: InternshipProgramId | null) {
   return APPLY_PROGRAMS.find((p) => p.id === id) ?? null;
 }
@@ -221,46 +176,85 @@ export function getPlanById(id: DurationPlanId | null) {
   return DURATION_PLANS.find((p) => p.id === id) ?? null;
 }
 
+export const FORM_LIMITS = {
+  text: 50,
+  nameMin: 2,
+} as const;
+
+const NAME_PATTERN = /^[a-zA-Z]+(?:[ .'-][a-zA-Z]+)*$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function clampText(value: string, max = FORM_LIMITS.text): string {
+  return value.slice(0, max);
+}
+
+export function sanitizeName(value: string): string {
+  return clampText(value.replace(/[^a-zA-Z .'-]/g, "").replace(/\s+/g, " "));
+}
+
+export function sanitizeEmail(value: string): string {
+  return clampText(value.trimStart().replace(/\s/g, ""), FORM_LIMITS.text);
+}
+
 export function validateApplicationForm(
   data: ApplicationFormData
 ): ApplicationFormErrors {
   const errors: ApplicationFormErrors = {};
+  const fullName = data.fullName.trim();
+  const email = data.email.trim().toLowerCase();
 
-  if (!data.fullName.trim() || data.fullName.trim().length < 2) {
-    errors.fullName = "Please enter your full name";
+  if (!fullName) {
+    errors.fullName = "Full name is required";
+  } else if (fullName.length < FORM_LIMITS.nameMin) {
+    errors.fullName = `Name must be at least ${FORM_LIMITS.nameMin} characters`;
+  } else if (fullName.length > FORM_LIMITS.text) {
+    errors.fullName = `Name must be ${FORM_LIMITS.text} characters or less`;
+  } else if (!NAME_PATTERN.test(fullName)) {
+    errors.fullName = "Enter a valid name (letters only)";
   }
 
-  if (!data.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+  if (!email) {
+    errors.email = "Email is required";
+  } else if (email.length > FORM_LIMITS.text) {
+    errors.email = `Email must be ${FORM_LIMITS.text} characters or less`;
+  } else if (!EMAIL_PATTERN.test(email)) {
     errors.email = "Enter a valid email address";
   }
 
-  const phoneDigits = data.phone.replace(/\D/g, "");
-  if (phoneDigits.length !== 10) {
-    errors.phone = "Enter a valid 10-digit mobile number";
+  if (!data.countryIso) {
+    errors.countryIso = "Select a country";
+  } else if (!isSupportedCountryIso(data.countryIso)) {
+    errors.countryIso = "Select a valid country";
+  }
+
+  if (!data.phone.trim()) {
+    errors.phone = "Phone number is required";
+  } else if (!isValidInternationalPhone(data.phone, data.countryIso)) {
+    errors.phone = "Enter a valid phone number for the selected country";
   }
 
   if (!data.occupation) {
     errors.occupation = "Select your occupation";
-  }
-
-  if (!data.state) {
-    errors.state = "Select your state";
-  }
-
-  if (!data.city.trim()) {
-    errors.city = "City is required";
+  } else if (!OCCUPATIONS.some((item) => item.value === data.occupation)) {
+    errors.occupation = "Select a valid occupation";
   }
 
   if (!data.preferredBatch) {
     errors.preferredBatch = "Select your preferred batch";
+  } else if (data.preferredBatch !== getTomorrowBatchValue()) {
+    errors.preferredBatch = "Select a valid batch date";
   }
 
   if (!data.programId) {
     errors.programId = "Select an internship program";
+  } else if (!APPLY_PROGRAMS.some((item) => item.id === data.programId)) {
+    errors.programId = "Select a valid internship program";
   }
 
   if (!data.durationId) {
     errors.durationId = "Select a duration plan";
+  } else if (!DURATION_PLANS.some((item) => item.id === data.durationId)) {
+    errors.durationId = "Select a valid duration plan";
   }
 
   if (!data.termsAccepted) {
@@ -268,8 +262,4 @@ export function validateApplicationForm(
   }
 
   return errors;
-}
-
-export function isApplicationFormComplete(data: ApplicationFormData): boolean {
-  return Object.keys(validateApplicationForm(data)).length === 0;
 }

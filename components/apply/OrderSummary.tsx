@@ -3,32 +3,40 @@
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  formatInr,
   getPlanById,
   getProgramById,
   type ApplicationFormData,
+  type DurationPlanId,
 } from "@/lib/apply";
+import { formatMoney, type PricingCurrency } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
 interface OrderSummaryProps {
   data: ApplicationFormData;
-  canContinue: boolean;
+  currency: PricingCurrency;
+  planPrices: Record<DurationPlanId, number> | null;
+  pricingLoading?: boolean;
+  pricingSource?: "live" | "fallback";
   loading?: boolean;
   onContinue: () => void;
   className?: string;
 }
 
-/** Sticky enrollment order summary with dynamic pricing. */
+/** Sticky enrollment order summary with live FX pricing from API. */
 export function OrderSummary({
   data,
-  canContinue,
+  currency,
+  planPrices,
+  pricingLoading = false,
+  pricingSource = "live",
   loading = false,
   onContinue,
   className,
 }: OrderSummaryProps) {
   const program = getProgramById(data.programId);
   const plan = getPlanById(data.durationId);
-  const total = plan?.priceInr ?? 0;
+  const localTotal =
+    plan && planPrices ? planPrices[plan.id] : null;
 
   return (
     <aside
@@ -70,7 +78,11 @@ export function OrderSummary({
         <div className="flex items-center justify-between gap-4">
           <p className="text-sm text-slate">Internship Fee</p>
           <p className="text-sm font-semibold text-navy">
-            {plan ? formatInr(plan.priceInr) : "—"}
+            {typeof localTotal === "number"
+              ? formatMoney(localTotal, currency)
+              : pricingLoading
+                ? "…"
+                : "—"}
           </p>
         </div>
       </div>
@@ -81,7 +93,11 @@ export function OrderSummary({
             Total
           </p>
           <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight text-navy">
-            {plan ? formatInr(total) : "₹0"}
+            {typeof localTotal === "number"
+              ? formatMoney(localTotal, currency)
+              : pricingLoading
+                ? "…"
+                : "—"}
           </p>
         </div>
       </div>
@@ -90,13 +106,15 @@ export function OrderSummary({
         type="button"
         size="lg"
         className="mt-6 w-full text-base"
-        disabled={!canContinue || loading}
+        disabled={loading || !planPrices}
         onClick={onContinue}
       >
         {loading ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            Validating…
+            {pricingLoading
+              ? "Loading live prices…"
+              : "Confirming payment…"}
           </>
         ) : (
           "Continue to Payment →"
@@ -104,7 +122,11 @@ export function OrderSummary({
       </Button>
 
       <p className="mt-3 text-center text-xs leading-relaxed text-slate">
-        Payment gateway comes next. No charge is taken on this step.
+        {currency === "INR"
+          ? "Secure checkout via Razorpay · INR"
+          : pricingSource === "fallback"
+            ? "Exchange rate unavailable · charged in USD"
+            : `Live FX from ExchangeRate-API · charged in ${currency}`}
       </p>
     </aside>
   );

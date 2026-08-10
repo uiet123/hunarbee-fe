@@ -4,21 +4,36 @@ import { Check } from "lucide-react";
 import { motion } from "framer-motion";
 import {
   DURATION_PLANS,
-  formatInr,
-  type ApplicationFormErrors,
   type DurationPlanId,
 } from "@/lib/apply";
+import {
+  formatMoney,
+  getPricingLabel,
+  type PricingCurrency,
+} from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
 interface DurationSelectorProps {
   value: DurationPlanId | null;
+  currency: PricingCurrency;
+  planPrices: Record<DurationPlanId, number> | null;
+  countryName?: string;
+  pricingLoading?: boolean;
+  pricingError?: string | null;
+  pricingSource?: "live" | "fallback";
   error?: string;
   onChange: (id: DurationPlanId) => void;
 }
 
-/** Single-select pricing / duration plans. */
+/** Single-select pricing / duration plans with live FX from API. */
 export function DurationSelector({
   value,
+  currency,
+  planPrices,
+  countryName,
+  pricingLoading = false,
+  pricingError = null,
+  pricingSource = "live",
   error,
   onChange,
 }: DurationSelectorProps) {
@@ -29,13 +44,19 @@ export function DurationSelector({
           Choose Your Duration
         </h2>
         <p className="mt-1 text-sm text-slate">
-          Pick the plan that matches your learning pace.
+          Pick the plan that matches your learning pace.{" "}
+          <span className="font-medium text-navy">
+            {pricingSource === "fallback"
+              ? `USD fallback${countryName ? ` · ${countryName}` : ""}`
+              : getPricingLabel(currency, countryName)}
+          </span>
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2" role="radiogroup" aria-label="Duration plan">
         {DURATION_PLANS.map((plan) => {
           const selected = value === plan.id;
+          const localPrice = planPrices?.[plan.id];
 
           return (
             <motion.button
@@ -46,13 +67,15 @@ export function DurationSelector({
               whileHover={{ y: -3 }}
               whileTap={{ scale: 0.99 }}
               onClick={() => onChange(plan.id)}
+              disabled={pricingLoading || !planPrices}
               className={cn(
                 "relative flex h-full flex-col rounded-2xl border bg-surface-elevated/95 p-5 text-left shadow-[var(--shadow-soft)] transition-[border-color,box-shadow] duration-300",
                 selected
                   ? "border-honey/55 shadow-[0_16px_40px_rgba(245,184,0,0.18)]"
                   : "border-navy/10 hover:border-honey/35 hover:shadow-[var(--shadow-lift)]",
                 plan.recommended && !selected && "border-honey/30",
-                error && !value && "border-red-300"
+                error && !value && "border-red-300",
+                (pricingLoading || !planPrices) && "opacity-70"
               )}
             >
               {plan.recommended ? (
@@ -66,8 +89,17 @@ export function DurationSelector({
                   <p className="font-[family-name:var(--font-display)] text-lg font-bold text-navy">
                     {plan.label}
                   </p>
-                  <p className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight text-navy">
-                    {formatInr(plan.priceInr)}
+                  <p
+                    className={cn(
+                      "mt-2 font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight text-navy transition-opacity",
+                      pricingLoading && "opacity-60"
+                    )}
+                  >
+                    {typeof localPrice === "number"
+                      ? formatMoney(localPrice, currency)
+                      : pricingLoading
+                        ? "…"
+                        : "—"}
                   </p>
                 </div>
                 <span
@@ -86,6 +118,12 @@ export function DurationSelector({
           );
         })}
       </div>
+
+      {pricingError ? (
+        <p className="text-xs font-medium text-red-600" role="alert">
+          {pricingError}
+        </p>
+      ) : null}
 
       {error ? (
         <p className="text-xs font-medium text-red-600" role="alert">

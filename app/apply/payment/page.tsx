@@ -1,11 +1,6 @@
-import type { Metadata } from "next";
-import { PaymentPlaceholder } from "@/components/apply/PaymentPlaceholder";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Payment",
-  description: "Secure your Hunarbee internship enrollment. Payment coming soon.",
-};
-
+/** Payment is handled on /apply via Razorpay Checkout — keep old URL working. */
 export default function ApplyPaymentPage() {
-  return <PaymentPlaceholder />;
+  redirect("/apply");
 }
