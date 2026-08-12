@@ -12,6 +12,7 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
+    cache: "no-store",
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -59,6 +60,7 @@ export interface PaymentStatusResponse {
 
 export interface PlanPrices {
   "1-month": number;
+  "2-months": number;
   "3-months": number;
 }
 
@@ -79,7 +81,7 @@ export function fetchPricing(currency: string) {
 }
 
 export function createPaymentOrder(body: {
-  durationId: "1-month" | "3-months";
+  durationId: "1-month" | "2-months" | "3-months";
   currency: string;
   programId: string;
   applicantName: string;

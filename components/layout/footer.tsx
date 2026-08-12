@@ -1,10 +1,18 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { BrandWordmark } from "@/components/shared/brand-wordmark";
 import { FOOTER_LINKS, SITE } from "@/lib/constants";
 
 /** Site footer with gradient separator, logo, links, and contact. */
 export function Footer() {
+  const pathname = usePathname();
+  if (pathname?.startsWith("/portal")) {
+    return null;
+  }
+
   return (
     <footer className="relative border-t border-white/[0.06] bg-navy text-white">
       {/* Gradient separator glow */}

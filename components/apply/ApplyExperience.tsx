@@ -292,7 +292,7 @@ export function ApplyExperience() {
                   <ShieldCheck className="h-7 w-7" />
                 </div>
                 <h2 className="mt-6 font-[family-name:var(--font-display)] text-2xl font-bold text-navy sm:text-3xl">
-                  Payment successful
+                  Congratulations!
                 </h2>
                 <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-slate">
                   Your internship enrollment for{" "}
@@ -300,6 +300,10 @@ export function ApplyExperience() {
                     {paidReceipt.programTitle}
                   </span>{" "}
                   ({paidReceipt.planLabel}) is confirmed.
+                </p>
+                <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate">
+                  Further details — your offer letter and learning portal login
+                  (ID, password, and link) — will be sent to your email shortly.
                 </p>
 
                 <div className="mx-auto mt-6 max-w-sm space-y-2 rounded-2xl border border-navy/10 bg-surface px-4 py-4 text-left text-sm">

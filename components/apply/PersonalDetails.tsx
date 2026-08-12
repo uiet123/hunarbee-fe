@@ -62,7 +62,6 @@ export function PersonalDetails({ data, errors, onChange }: PersonalDetailsProps
           label="Full Name"
           required
           error={errors.fullName}
-          hint={`Letters only · Max ${FORM_LIMITS.text} characters`}
         >
           <input
             id="fullName"
@@ -82,7 +81,6 @@ export function PersonalDetails({ data, errors, onChange }: PersonalDetailsProps
           label="Email Address"
           required
           error={errors.email}
-          hint={`Max ${FORM_LIMITS.text} characters`}
         >
           <input
             id="email"
@@ -102,7 +100,6 @@ export function PersonalDetails({ data, errors, onChange }: PersonalDetailsProps
           label="Country"
           required
           error={errors.countryIso}
-          hint="Prefills from your location · sets local currency"
         >
           <CountryField
             id="countryIso"
@@ -117,7 +114,6 @@ export function PersonalDetails({ data, errors, onChange }: PersonalDetailsProps
           label="Phone Number"
           required
           error={errors.phone}
-          hint="Dial code follows your selected country"
         >
           <PhoneNumberField
             id="phone"

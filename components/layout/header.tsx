@@ -31,6 +31,10 @@ export function Header() {
     };
   }, [open]);
 
+  if (pathname?.startsWith("/portal")) {
+    return null;
+  }
+
   return (
     <header
       className={cn(

@@ -53,7 +53,11 @@ export function DurationSelector({
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2" role="radiogroup" aria-label="Duration plan">
+      <div
+        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+        role="radiogroup"
+        aria-label="Duration plan"
+      >
         {DURATION_PLANS.map((plan) => {
           const selected = value === plan.id;
           const localPrice = planPrices?.[plan.id];

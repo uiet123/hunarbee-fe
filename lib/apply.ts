@@ -1,7 +1,7 @@
 import { isSupportedCountryIso, isValidInternationalPhone } from "./phone";
 
 export type InternshipProgramId = "frontend" | "backend" | "fullstack";
-export type DurationPlanId = "1-month" | "3-months";
+export type DurationPlanId = "1-month" | "2-months" | "3-months";
 
 export interface InternshipProgram {
   id: InternshipProgramId;
@@ -79,6 +79,18 @@ export const DURATION_PLANS: DurationPlan[] = [
     includes: [
       "Guided learning",
       "Practical projects",
+      "Internship experience",
+      "Certificate",
+    ],
+  },
+  {
+    id: "2-months",
+    label: "2 Months",
+    months: 2,
+    includes: [
+      "Guided learning",
+      "Practical projects",
+      "Mentor guidance",
       "Internship experience",
       "Certificate",
     ],
