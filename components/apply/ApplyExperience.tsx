@@ -44,7 +44,7 @@ const BENEFIT_ICONS = [Briefcase, Compass, Award, FolderKanban] as const;
 type PaymentStatus = "idle" | "paid";
 
 /** Full frontend internship application experience with Razorpay checkout. */
-export function ApplyExperience() {
+export function ApplyExperience({ programId }: { programId?: string }) {
   const [form, setForm] = useState<ApplicationFormData>(INITIAL_APPLICATION_FORM);
   const [errors, setErrors] = useState<ApplicationFormErrors>({});
   const [showErrors, setShowErrors] = useState(false);
@@ -62,6 +62,7 @@ export function ApplyExperience() {
     DurationPlanId,
     number
   > | null>(null);
+  const [rateFromInr, setRateFromInr] = useState<number | null>(null);
   const [pricingError, setPricingError] = useState<string | null>(null);
   const [pricingLoading, setPricingLoading] = useState(false);
   const [paidReceipt, setPaidReceipt] = useState<{
@@ -71,6 +72,28 @@ export function ApplyExperience() {
     programTitle: string;
     planLabel: string;
   } | null>(null);
+
+  const [dbProgram, setDbProgram] = useState<any>(null);
+  const [dbPlans, setDbPlans] = useState<any[]>([]);
+  const [loadingProgram, setLoadingProgram] = useState(false);
+
+  useEffect(() => {
+    if (programId) {
+      setLoadingProgram(true);
+      setForm(prev => ({ ...prev, programId }));
+      import("@/lib/api").then(({ fetchProgramById }) => {
+        fetchProgramById(programId)
+          .then(res => {
+            if (res.program) {
+              setDbProgram(res.program);
+              setDbPlans(res.program.plans || []);
+            }
+          })
+          .catch(console.error)
+          .finally(() => setLoadingProgram(false));
+      });
+    }
+  }, [programId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,6 +128,7 @@ export function ApplyExperience() {
         if (cancelled) return;
         const nextCurrency = (pricing.currency as PricingCurrency) || preferredCurrency;
         setPlanPrices(pricing.plans);
+        setRateFromInr(pricing.rateFromInr);
         setCurrency(nextCurrency);
         setPricingSource(pricing.source);
         setPricingError(null);
@@ -165,8 +189,8 @@ export function ApplyExperience() {
       return;
     }
 
-    const plan = getPlanById(form.durationId);
-    const program = getProgramById(form.programId);
+    const plan = dbPlans.find((p) => p.id === form.durationId) || getPlanById(form.durationId);
+    const program = dbProgram || getProgramById(form.programId);
     if (!plan || !program || !form.programId || !form.durationId) {
       setPaymentError("Please select a program and duration.");
       return;
@@ -201,7 +225,7 @@ export function ApplyExperience() {
         amount: order.amount,
         currency: order.currency,
         name: "Hunarbee",
-        description: `${program.title} · ${plan.label}`,
+        description: `${program.title} · ${plan.duration_months ? plan.duration_months + " Months" : plan.label}`,
         order_id: order.orderId,
         ...(order.customerId ? { customer_id: order.customerId } : {}),
         prefill: {
@@ -246,7 +270,7 @@ export function ApplyExperience() {
               amountMajor: settled.amountMajor,
               currency: (settled.currency as PricingCurrency) || currency,
               programTitle: program.title,
-              planLabel: plan.label,
+              planLabel: plan.duration_months ? plan.duration_months + " Months" : plan.label,
             });
             setPaymentStatus("paid");
             setPaymentError(null);
@@ -364,6 +388,8 @@ export function ApplyExperience() {
                       value={form.programId}
                       error={errors.programId}
                       onChange={(id) => update("programId", id)}
+                      lockedProgram={dbProgram}
+                      loading={loadingProgram}
                     />
                   </div>
                 </FadeIn>
@@ -375,11 +401,13 @@ export function ApplyExperience() {
                       currency={currency}
                       countryName={countryName}
                       planPrices={planPrices}
+                      rateFromInr={rateFromInr}
                       pricingLoading={pricingLoading}
                       pricingError={pricingError}
                       pricingSource={pricingSource}
                       error={errors.durationId}
                       onChange={(id) => update("durationId", id)}
+                      dbPlans={dbPlans}
                     />
                   </div>
                 </FadeIn>
@@ -407,8 +435,11 @@ export function ApplyExperience() {
                   planPrices={planPrices}
                   pricingLoading={pricingLoading}
                   pricingSource={pricingSource}
-                  loading={loading || pricingLoading || !planPrices}
+                  loading={loading || pricingLoading || (!planPrices && !dbPlans?.length)}
                   onContinue={handleContinue}
+                  dbProgram={dbProgram}
+                  dbPlans={dbPlans}
+                  rateFromInr={rateFromInr}
                 />
               </div>
             </motion.div>

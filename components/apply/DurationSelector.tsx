@@ -14,15 +14,17 @@ import {
 import { cn } from "@/lib/utils";
 
 interface DurationSelectorProps {
-  value: DurationPlanId | null;
+  value: string | null;
   currency: PricingCurrency;
-  planPrices: Record<DurationPlanId, number> | null;
+  planPrices: Record<string, number> | null;
+  rateFromInr?: number | null;
   countryName?: string;
   pricingLoading?: boolean;
   pricingError?: string | null;
   pricingSource?: "live" | "fallback";
   error?: string;
-  onChange: (id: DurationPlanId) => void;
+  onChange: (id: string) => void;
+  dbPlans?: any[];
 }
 
 /** Single-select pricing / duration plans with live FX from API. */
@@ -30,12 +32,14 @@ export function DurationSelector({
   value,
   currency,
   planPrices,
+  rateFromInr,
   countryName,
   pricingLoading = false,
   pricingError = null,
   pricingSource = "live",
   error,
   onChange,
+  dbPlans,
 }: DurationSelectorProps) {
   return (
     <section className="space-y-5">
@@ -58,9 +62,19 @@ export function DurationSelector({
         role="radiogroup"
         aria-label="Duration plan"
       >
-        {DURATION_PLANS.map((plan) => {
+        {(dbPlans?.length ? dbPlans : DURATION_PLANS).map((plan, index) => {
           const selected = value === plan.id;
-          const localPrice = planPrices?.[plan.id];
+          
+          let localPrice: number | undefined;
+          if (dbPlans?.length) {
+             const baseInr = plan.price / 100;
+             localPrice = currency === "INR" ? baseInr : Math.ceil(baseInr * (rateFromInr || 1));
+          } else {
+             localPrice = planPrices?.[plan.id as DurationPlanId];
+          }
+          
+          const label = dbPlans?.length ? (plan.duration_months ? `${plan.duration_months} Months` : plan.name) : plan.label;
+          const isRecommended = dbPlans?.length ? index === 0 : plan.recommended;
 
           return (
             <motion.button
@@ -79,10 +93,10 @@ export function DurationSelector({
                   : "border-navy/10 hover:border-honey/35 hover:shadow-[var(--shadow-lift)]",
                 plan.recommended && !selected && "border-honey/30",
                 error && !value && "border-red-300",
-                (pricingLoading || !planPrices) && "opacity-70"
+                (pricingLoading || typeof localPrice !== "number") && "opacity-70"
               )}
             >
-              {plan.recommended ? (
+              {isRecommended ? (
                 <span className="absolute -top-2.5 right-4 rounded-full bg-honey px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-navy shadow-[0_4px_12px_rgba(245,184,0,0.35)]">
                   Recommended
                 </span>
@@ -91,7 +105,7 @@ export function DurationSelector({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-[family-name:var(--font-display)] text-lg font-bold text-navy">
-                    {plan.label}
+                    {label}
                   </p>
                   <p
                     className={cn(

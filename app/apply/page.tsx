@@ -8,6 +8,13 @@ export const metadata: Metadata = {
 };
 
 /** Internship application / enrollment page (frontend-only). */
-export default function ApplyPage() {
-  return <ApplyExperience />;
+export default async function ApplyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const programId = typeof params.programId === "string" ? params.programId : undefined;
+
+  return <ApplyExperience programId={programId} />;
 }

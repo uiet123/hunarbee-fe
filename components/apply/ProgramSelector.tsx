@@ -16,9 +16,11 @@ const ICONS = {
 } as const;
 
 interface ProgramSelectorProps {
-  value: InternshipProgramId | null;
+  value: InternshipProgramId | string | null;
   error?: string;
-  onChange: (id: InternshipProgramId) => void;
+  onChange: (id: string) => void;
+  lockedProgram?: any;
+  loading?: boolean;
 }
 
 /** Single-select premium internship program cards. */
@@ -26,6 +28,8 @@ export function ProgramSelector({
   value,
   error,
   onChange,
+  lockedProgram,
+  loading,
 }: ProgramSelectorProps) {
   return (
     <section className="space-y-5">
@@ -39,7 +43,33 @@ export function ProgramSelector({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-1" role="radiogroup" aria-label="Internship program">
-        {APPLY_PROGRAMS.map((program) => {
+        {loading ? (
+           <div className="animate-pulse rounded-2xl border border-navy/10 bg-surface-elevated/95 p-5 h-24" />
+        ) : lockedProgram ? (
+          <motion.div
+            key={lockedProgram.id}
+            role="radio"
+            aria-checked={true}
+            className="group relative flex w-full items-start gap-4 rounded-2xl border border-honey/55 bg-honey/[0.1] shadow-[0_12px_32px_rgba(245,184,0,0.16)] p-4 text-left sm:p-5"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-honey text-navy">
+              <Monitor className="h-5 w-5" strokeWidth={2} />
+            </div>
+
+            <div className="min-w-0 flex-1 pr-8">
+              <p className="font-[family-name:var(--font-display)] text-base font-bold text-navy">
+                {lockedProgram.title}
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-slate">
+                {lockedProgram.description}
+              </p>
+            </div>
+
+            <span className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full border border-honey bg-honey text-navy" aria-hidden>
+              <Check className="h-3.5 w-3.5" strokeWidth={3} />
+            </span>
+          </motion.div>
+        ) : APPLY_PROGRAMS.map((program) => {
           const selected = value === program.id;
           const Icon = ICONS[program.icon];
 

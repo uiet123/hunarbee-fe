@@ -81,7 +81,7 @@ export function fetchPricing(currency: string) {
 }
 
 export function createPaymentOrder(body: {
-  durationId: "1-month" | "2-months" | "3-months";
+  durationId: string;
   currency: string;
   programId: string;
   applicantName: string;
@@ -124,4 +124,30 @@ export async function waitForPaymentSettlement(
     "Payment is still processing. If money was deducted, enrollment will confirm shortly.",
     408
   );
+}
+
+export interface Plan {
+  id: string;
+  name: string;
+  price: number;
+  duration_months: number;
+  total_days: number;
+}
+
+export interface Program {
+  id: string;
+  title: string;
+  description: string;
+  duration: string;
+  mode: string;
+  highlights: string[];
+  plans?: Plan[];
+}
+
+export function fetchPrograms() {
+  return request<{ programs: Program[] }>("/api/programs");
+}
+
+export function fetchProgramById(id: string) {
+  return request<{ program: Program }>(`/api/programs/${encodeURIComponent(id)}`);
 }

@@ -27,8 +27,8 @@ export interface ApplicationFormData {
   phone: string;
   occupation: string;
   preferredBatch: string;
-  programId: InternshipProgramId | null;
-  durationId: DurationPlanId | null;
+  programId: string | null;
+  durationId: string | null;
   termsAccepted: boolean;
 }
 
@@ -180,12 +180,12 @@ export function getTomorrowBatchOption(from: Date = new Date()) {
   };
 }
 
-export function getProgramById(id: InternshipProgramId | null) {
-  return APPLY_PROGRAMS.find((p) => p.id === id) ?? null;
+export function getProgramById(id: string | null) {
+  return APPLY_PROGRAMS.find((p) => p.id === id) || null;
 }
 
-export function getPlanById(id: DurationPlanId | null) {
-  return DURATION_PLANS.find((p) => p.id === id) ?? null;
+export function getPlanById(id: string | null) {
+  return DURATION_PLANS.find((p) => p.id === id) || null;
 }
 
 export const FORM_LIMITS = {

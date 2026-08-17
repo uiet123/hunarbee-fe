@@ -14,12 +14,15 @@ import { cn } from "@/lib/utils";
 interface OrderSummaryProps {
   data: ApplicationFormData;
   currency: PricingCurrency;
-  planPrices: Record<DurationPlanId, number> | null;
+  planPrices: Record<string, number> | null;
   pricingLoading?: boolean;
   pricingSource?: "live" | "fallback";
   loading?: boolean;
   onContinue: () => void;
   className?: string;
+  dbProgram?: any;
+  dbPlans?: any[];
+  rateFromInr?: number | null;
 }
 
 /** Sticky enrollment order summary with live FX pricing from API. */
@@ -32,11 +35,20 @@ export function OrderSummary({
   loading = false,
   onContinue,
   className,
+  dbProgram,
+  dbPlans,
+  rateFromInr,
 }: OrderSummaryProps) {
-  const program = getProgramById(data.programId);
-  const plan = getPlanById(data.durationId);
-  const localTotal =
-    plan && planPrices ? planPrices[plan.id] : null;
+  const program = dbProgram || getProgramById(data.programId);
+  const plan = dbPlans?.find(p => p.id === data.durationId) || getPlanById(data.durationId);
+  
+  let localTotal: number | null = null;
+  if (dbPlans?.length && plan) {
+    const baseInr = plan.price / 100;
+    localTotal = currency === "INR" ? baseInr : Math.ceil(baseInr * (rateFromInr || 1));
+  } else if (plan && planPrices) {
+    localTotal = planPrices[plan.id];
+  }
 
   return (
     <aside
@@ -70,7 +82,7 @@ export function OrderSummary({
               Duration
             </p>
             <p className="mt-1 text-sm font-semibold text-navy">
-              {plan?.label ?? "Select a plan"}
+              {plan ? (plan.duration_months ? `${plan.duration_months} Months` : plan.label || plan.name) : "Select a plan"}
             </p>
           </div>
         </div>
@@ -106,7 +118,7 @@ export function OrderSummary({
         type="button"
         size="lg"
         className="mt-6 w-full text-base"
-        disabled={loading || !planPrices}
+        disabled={loading || (dbPlans?.length ? false : !planPrices)}
         onClick={onContinue}
       >
         {loading ? (
