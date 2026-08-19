@@ -20,6 +20,7 @@ interface ProgramSelectorProps {
   error?: string;
   onChange: (id: string) => void;
   lockedProgram?: any;
+  programs?: any[];
   loading?: boolean;
 }
 
@@ -29,6 +30,7 @@ export function ProgramSelector({
   error,
   onChange,
   lockedProgram,
+  programs,
   loading,
 }: ProgramSelectorProps) {
   return (
@@ -69,9 +71,9 @@ export function ProgramSelector({
               <Check className="h-3.5 w-3.5" strokeWidth={3} />
             </span>
           </motion.div>
-        ) : APPLY_PROGRAMS.map((program) => {
+        ) : (programs?.length ? programs : APPLY_PROGRAMS).map((program) => {
           const selected = value === program.id;
-          const Icon = ICONS[program.icon];
+          const Icon = program.icon && ICONS[program.icon as keyof typeof ICONS] ? ICONS[program.icon as keyof typeof ICONS] : ICONS.Monitor;
 
           return (
             <motion.button

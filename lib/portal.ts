@@ -29,6 +29,7 @@ export interface PortalEnrollment {
   currency: string;
   amountPaise: number;
   createdAt: string;
+  startDate?: string;
 }
 
 export interface PortalHome {
@@ -103,13 +104,34 @@ export const PROGRAM_LABELS: Record<string, string> = {
   frontend: "Frontend Development",
   backend: "Backend Development",
   fullstack: "Full Stack Development",
+  prog_frontend: "Frontend Development",
+  prog_backend: "Backend Development",
+  prog_fullstack: "Full Stack Development",
 };
 
 export const DURATION_LABELS: Record<string, string> = {
   "1-month": "1 Month",
   "2-months": "2 Months",
   "3-months": "3 Months",
+  "dur_1_month": "1 Month",
+  "dur_2_months": "2 Months",
+  "dur_3_months": "3 Months",
 };
+
+export function formatFallbackLabel(id: string): string {
+  if (!id) return "";
+  
+  // Extract "X Month" or "X Months" if present
+  const monthMatch = id.match(/(\d+)[\s_-]*month(s?)/i);
+  if (monthMatch) {
+    return `${monthMatch[1]} Month${monthMatch[2] ? 's' : ''}`;
+  }
+
+  let clean = id.replace(/^(prog_|dur_)/, '');
+  clean = clean.replace(/-[a-z0-9]+$/, ''); // Remove random hash if created by admin
+  clean = clean.replace(/[-_]/g, ' ');
+  return clean.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+}
 
 export function formatBatchDate(value: string): string {
   const raw = value.includes("T") ? value.slice(0, 10) : value;

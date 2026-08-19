@@ -75,6 +75,7 @@ export function ApplyExperience({ programId }: { programId?: string }) {
 
   const [dbProgram, setDbProgram] = useState<any>(null);
   const [dbPlans, setDbPlans] = useState<any[]>([]);
+  const [allPrograms, setAllPrograms] = useState<any[]>([]);
   const [loadingProgram, setLoadingProgram] = useState(false);
 
   useEffect(() => {
@@ -86,7 +87,29 @@ export function ApplyExperience({ programId }: { programId?: string }) {
           .then(res => {
             if (res.program) {
               setDbProgram(res.program);
-              setDbPlans(res.program.plans || []);
+              const plans = res.program.plans || [];
+              setDbPlans(plans);
+              const highestPlanId = plans.length > 0 ? plans.reduce((prev: any, current: any) => (prev.price > current.price) ? prev : current).id : null;
+              setForm(prev => ({ ...prev, durationId: highestPlanId }));
+            }
+          })
+          .catch(console.error)
+          .finally(() => setLoadingProgram(false));
+      });
+    } else {
+      setLoadingProgram(true);
+      import("@/lib/api").then(({ fetchPrograms }) => {
+        fetchPrograms()
+          .then(res => {
+            if (res.programs) {
+              setAllPrograms(res.programs);
+              if (res.programs.length > 0) {
+                const firstProg = res.programs[0];
+                const plans = firstProg.plans || [];
+                const highestPlanId = plans.length > 0 ? plans.reduce((prev: any, current: any) => (prev.price > current.price) ? prev : current).id : null;
+                setForm(prev => ({ ...prev, programId: firstProg.id, durationId: highestPlanId }));
+                setDbPlans(plans);
+              }
             }
           })
           .catch(console.error)
@@ -156,6 +179,23 @@ export function ApplyExperience({ programId }: { programId?: string }) {
     key: K,
     value: ApplicationFormData[K]
   ) => {
+    if (key === "programId" && typeof value === "string" && !programId) {
+      const selectedProg = allPrograms.find((p) => p.id === value);
+      if (selectedProg) {
+        const plans = selectedProg.plans || [];
+        const highestPlanId = plans.length > 0 ? plans.reduce((prev: any, current: any) => (prev.price > current.price) ? prev : current).id : null;
+        setDbPlans(plans);
+        setForm((prev) => {
+          const next = { ...prev, [key]: value, durationId: highestPlanId };
+          if (showErrors) {
+            setErrors(validateApplicationForm(next, { dbPrograms: allPrograms, dbPlans: selectedProg.plans }));
+          }
+          return next;
+        });
+        return;
+      }
+    }
+
     setForm((prev) => {
       const next = { ...prev, [key]: value };
 
@@ -169,14 +209,14 @@ export function ApplyExperience({ programId }: { programId?: string }) {
       }
 
       if (showErrors) {
-        setErrors(validateApplicationForm(next));
+        setErrors(validateApplicationForm(next, { dbPrograms: allPrograms.length ? allPrograms : (dbProgram ? [dbProgram] : undefined), dbPlans }));
       }
       return next;
     });
   };
 
   const handleContinue = async () => {
-    const nextErrors = validateApplicationForm(form);
+    const nextErrors = validateApplicationForm(form, { dbPrograms: allPrograms.length ? allPrograms : (dbProgram ? [dbProgram] : undefined), dbPlans });
     setShowErrors(true);
     setErrors(nextErrors);
     setPaymentError(null);
@@ -189,8 +229,8 @@ export function ApplyExperience({ programId }: { programId?: string }) {
       return;
     }
 
-    const plan = dbPlans.find((p) => p.id === form.durationId) || getPlanById(form.durationId);
-    const program = dbProgram || getProgramById(form.programId);
+    const plan = dbPlans.find((p) => p.id === form.durationId);
+    const program = dbProgram || allPrograms.find(p => p.id === form.programId);
     if (!plan || !program || !form.programId || !form.durationId) {
       setPaymentError("Please select a program and duration.");
       return;
@@ -389,6 +429,7 @@ export function ApplyExperience({ programId }: { programId?: string }) {
                       error={errors.programId}
                       onChange={(id) => update("programId", id)}
                       lockedProgram={dbProgram}
+                      programs={allPrograms}
                       loading={loadingProgram}
                     />
                   </div>

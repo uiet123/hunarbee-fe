@@ -28,6 +28,7 @@ import {
   fetchPortalHome,
   firstName,
   formatBatchDate,
+  formatFallbackLabel,
   getPortalToken,
   PortalApiError,
   PROGRAM_LABELS,
@@ -58,18 +59,11 @@ const JOURNEY = [
 
 /* ── Quick stats config (now computed dynamically in component) ── */
 
-/* ── Mock upcoming schedule ── */
-const UPCOMING = [
-  { title: "React Hooks Deep Dive", mentor: "Mentor", time: "Tomorrow, 10:00 AM", type: "Live Session" },
-  { title: "Assignment #3 Due", mentor: "", time: "Wed, 11:59 PM", type: "Deadline" },
-  { title: "1:1 with Mentor", mentor: "Mentor", time: "Thu, 4:00 PM", type: "Meeting" },
-] as const;
+/* ── Upcoming schedule (to be dynamic) ── */
+const UPCOMING: unknown[] = [];
 
-/* ── Announcements ── */
-const ANNOUNCEMENTS = [
-  { text: "🎉 New batch starting August 25 — onboarding materials are ready!", time: "2 hours ago" },
-  { text: "📚 Week 2 resources have been uploaded to the learning portal.", time: "1 day ago" },
-] as const;
+/* ── Announcements (to be dynamic) ── */
+const ANNOUNCEMENTS: unknown[] = [];
 
 export function PortalDashboard() {
   const router = useRouter();
@@ -271,7 +265,7 @@ export function PortalDashboard() {
                     {!isLast && (
                       <div className={cn(
                         "absolute left-5 top-10 h-[calc(100%+0px)] w-[2px]",
-                        done ? "bg-honey/30" : "bg-white/[0.08]"
+                        done ? "bg-honey/30" : "bg-surface-elevated/[0.08]"
                       )} />
                     )}
                     <span
@@ -281,7 +275,7 @@ export function PortalDashboard() {
                           ? "border-honey/40 bg-honey/15 text-honey"
                           : current
                             ? "border-honey/30 bg-honey/10 text-honey animate-pulse-glow"
-                            : "border-white/10 bg-white/5 text-white/30"
+                            : "border-white/10 bg-surface-elevated/5 text-white/30"
                       )}
                     >
                       <Icon className="h-4 w-4" />
@@ -324,37 +318,43 @@ export function PortalDashboard() {
                 View all →
               </Link>
             </div>
-            <ul className="mt-4 space-y-3">
-              {UPCOMING.map((item, i) => (
-                <li
-                  key={i}
-                  className="flex items-center gap-4 rounded-2xl border border-navy/6 bg-surface px-4 py-3.5 transition-all hover:border-honey/20 hover:shadow-sm"
-                >
-                  <div className={cn(
-                    "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl",
-                    item.type === "Live Session" ? "bg-honey/10 text-honey-deep" :
-                    item.type === "Deadline" ? "bg-red-500/10 text-red-400" :
-                    "bg-blue-400/10 text-blue-500"
-                  )}>
-                    {item.type === "Live Session" ? <BookOpen className="h-4 w-4" /> :
-                     item.type === "Deadline" ? <Clock className="h-4 w-4" /> :
-                     <CalendarDays className="h-4 w-4" />}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-navy truncate">{item.title}</p>
-                    <p className="text-xs text-slate">{item.time}</p>
-                  </div>
-                  <span className={cn(
-                    "hidden sm:inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider",
-                    item.type === "Live Session" ? "bg-honey/10 text-honey-deep" :
-                    item.type === "Deadline" ? "bg-red-500/10 text-red-400" :
-                    "bg-blue-400/10 text-blue-500"
-                  )}>
-                    {item.type}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {UPCOMING.length > 0 ? (
+              <ul className="mt-4 space-y-3">
+                {UPCOMING.map((item, i) => (
+                  <li
+                    key={i}
+                    className="flex items-center gap-4 rounded-2xl border border-navy/6 bg-surface px-4 py-3.5 transition-all hover:border-honey/20 hover:shadow-sm"
+                  >
+                    <div className={cn(
+                      "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl",
+                      item.type === "Live Session" ? "bg-honey/10 text-honey-deep" :
+                      item.type === "Deadline" ? "bg-red-500/10 text-red-400" :
+                      "bg-blue-400/10 text-blue-500"
+                    )}>
+                      {item.type === "Live Session" ? <BookOpen className="h-4 w-4" /> :
+                       item.type === "Deadline" ? <Clock className="h-4 w-4" /> :
+                       <CalendarDays className="h-4 w-4" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-navy truncate">{item.title}</p>
+                      <p className="text-xs text-slate">{item.time}</p>
+                    </div>
+                    <span className={cn(
+                      "hidden sm:inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider",
+                      item.type === "Live Session" ? "bg-honey/10 text-honey-deep" :
+                      item.type === "Deadline" ? "bg-red-500/10 text-red-400" :
+                      "bg-blue-400/10 text-blue-500"
+                    )}>
+                      {item.type}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-dashed border-navy/10 bg-surface px-4 py-8 text-center">
+                <p className="text-sm text-slate">No upcoming schedule.</p>
+              </div>
+            )}
           </motion.div>
 
           {/* Announcements */}
@@ -365,25 +365,23 @@ export function PortalDashboard() {
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-honey-deep">
               Announcements
             </p>
-            <ul className="mt-4 space-y-3">
-              {ANNOUNCEMENTS.map((item, i) => (
-                <li
-                  key={i}
-                  className="rounded-2xl border border-navy/6 bg-surface px-4 py-4 transition-all hover:border-honey/20 hover:shadow-sm"
-                >
-                  <p className="text-sm font-medium text-navy leading-relaxed">{item.text}</p>
-                  <p className="mt-2 text-xs text-slate">{item.time}</p>
-                </li>
-              ))}
-            </ul>
-
-            {/* Motivational tip */}
-            <div className="mt-4 rounded-2xl border border-honey/15 bg-honey/[0.05] px-4 py-3.5">
-              <p className="text-xs font-semibold text-honey-deep">💡 Tip of the day</p>
-              <p className="mt-1 text-sm text-navy/70 leading-relaxed">
-                Consistency beats intensity. Show up every day, even for 30 minutes.
-              </p>
-            </div>
+            {ANNOUNCEMENTS.length > 0 ? (
+              <ul className="mt-4 space-y-3">
+                {ANNOUNCEMENTS.map((item, i) => (
+                  <li
+                    key={i}
+                    className="rounded-2xl border border-navy/6 bg-surface px-4 py-4 transition-all hover:border-honey/20 hover:shadow-sm"
+                  >
+                    <p className="text-sm font-medium text-navy leading-relaxed">{item.text}</p>
+                    <p className="mt-2 text-xs text-slate">{item.time}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-dashed border-navy/10 bg-surface px-4 py-8 text-center">
+                <p className="text-sm text-slate">No new announcements.</p>
+              </div>
+            )}
           </motion.div>
         </div>
       </motion.div>
@@ -393,8 +391,8 @@ export function PortalDashboard() {
 
 /* ── Enrollment Panel ── */
 function EnrollmentPanel({ enrollment, completionPct }: { enrollment: PortalEnrollment, completionPct: number }) {
-  const program = PROGRAM_LABELS[enrollment.programId] ?? enrollment.programId;
-  const duration = DURATION_LABELS[enrollment.durationId] ?? enrollment.durationId;
+  const program = PROGRAM_LABELS[enrollment.programId] ?? formatFallbackLabel(enrollment.programId);
+  const duration = DURATION_LABELS[enrollment.durationId] ?? formatFallbackLabel(enrollment.durationId);
 
   return (
     <div className="mt-4">

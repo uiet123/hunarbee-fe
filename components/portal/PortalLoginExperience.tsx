@@ -124,7 +124,7 @@ export function PortalLoginExperience() {
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.18, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-            className="w-full max-w-md rounded-[28px] border border-white/10 bg-white/[0.06] p-7 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-9"
+            className="w-full max-w-md rounded-[28px] border border-white/10 bg-surface-elevated/[0.06] p-7 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-9"
           >
             <h2 className="font-[family-name:var(--font-display)] text-2xl font-bold text-white">
               Sign in
@@ -145,7 +145,7 @@ export function PortalLoginExperience() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@email.com"
-                  className="w-full rounded-2xl border border-white/15 bg-white/[0.06] px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-honey/60 focus:ring-4 focus:ring-honey/15"
+                  className="w-full rounded-2xl border border-white/15 bg-surface-elevated/[0.06] px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-honey/60 focus:ring-4 focus:ring-honey/15"
                 />
               </label>
 
@@ -161,7 +161,7 @@ export function PortalLoginExperience() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Your temporary password"
-                    className="w-full rounded-2xl border border-white/15 bg-white/[0.06] px-4 py-3.5 pr-12 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-honey/60 focus:ring-4 focus:ring-honey/15"
+                    className="w-full rounded-2xl border border-white/15 bg-surface-elevated/[0.06] px-4 py-3.5 pr-12 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-honey/60 focus:ring-4 focus:ring-honey/15"
                   />
                   <button
                     type="button"

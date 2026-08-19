@@ -80,7 +80,7 @@ function SidebarContent({ user, onClose }: PortalSidebarProps & { onClose?: () =
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-white/50 transition hover:bg-white/10 hover:text-white lg:hidden"
+            className="rounded-lg p-1.5 text-white/50 transition hover:bg-surface-elevated/10 hover:text-white lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>
@@ -113,7 +113,7 @@ function SidebarContent({ user, onClose }: PortalSidebarProps & { onClose?: () =
                 "group relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
                 isActive
                   ? "bg-honey/[0.12] text-honey shadow-[inset_0_0_0_1px_rgba(245,184,0,0.2)]"
-                  : "text-white/50 hover:bg-white/[0.06] hover:text-white/80"
+                  : "text-white/50 hover:bg-surface-elevated/[0.06] hover:text-white/80"
               )}
             >
               {/* Active indicator bar */}
@@ -139,7 +139,7 @@ function SidebarContent({ user, onClose }: PortalSidebarProps & { onClose?: () =
       {/* User section */}
       <div className="border-t border-white/[0.07] px-4 py-4">
         {user && (
-          <div className="mb-3 flex items-center gap-3 rounded-2xl bg-white/[0.04] px-3 py-3">
+          <div className="mb-3 flex items-center gap-3 rounded-2xl bg-surface-elevated/[0.04] px-3 py-3">
             <UserInitials name={user.name} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-white">

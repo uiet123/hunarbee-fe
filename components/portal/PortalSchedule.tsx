@@ -38,63 +38,12 @@ interface ScheduleEvent {
 }
 
 const WEEK_EVENTS: Record<string, ScheduleEvent[]> = {
-  Mon: [
-    {
-      title: "React Hooks Deep Dive",
-      time: "10:00 AM",
-      duration: "1.5 hrs",
-      type: "session",
-      mentor: "Amit Kumar",
-      description: "Understanding useEffect, useMemo, and custom hooks",
-    },
-  ],
+  Mon: [],
   Tue: [],
-  Wed: [
-    {
-      title: "Assignment #3 Submission",
-      time: "11:59 PM",
-      duration: "—",
-      type: "deadline",
-      description: "Build a todo app with useReducer",
-    },
-    {
-      title: "UI/UX Workshop",
-      time: "3:00 PM",
-      duration: "2 hrs",
-      type: "workshop",
-      mentor: "Priya Sharma",
-      description: "Design systems and component thinking",
-    },
-  ],
-  Thu: [
-    {
-      title: "1:1 Mentor Session",
-      time: "4:00 PM",
-      duration: "30 min",
-      type: "meeting",
-      mentor: "Amit Kumar",
-      description: "Weekly progress review and guidance",
-    },
-  ],
-  Fri: [
-    {
-      title: "TypeScript Masterclass",
-      time: "11:00 AM",
-      duration: "2 hrs",
-      type: "session",
-      mentor: "Rohan Mehta",
-      description: "Generics, utility types, and advanced patterns",
-    },
-  ],
-  Sat: [
-    {
-      title: "Peer Code Review",
-      time: "10:00 AM",
-      duration: "1 hr",
-      type: "workshop",
-      description: "Review and discuss each other's assignments",
-    },
-  ],
+  Wed: [],
+  Thu: [],
+  Fri: [],
+  Sat: [],
   Sun: [],
 };
 

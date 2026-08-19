@@ -4,20 +4,15 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  BookOpen,
-  Calendar,
-  CheckCircle2,
   Clock,
   ExternalLink,
-  FileText,
   Play,
   Award,
-  ChevronDown,
-  ChevronRight,
-  AlertCircle,
   X,
   Lock,
-  Unlock
+  Unlock,
+  Menu,
+  GraduationCap
 } from "lucide-react";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { Button } from "@/components/ui/button";
@@ -27,12 +22,12 @@ import {
   clearPortalToken,
   PortalApiError,
   formatBatchDate,
-  type PortalHome,
+  type PortalHome
 } from "@/lib/portal";
 import { cn } from "@/lib/utils";
 import type { LearningProgress } from "@/lib/learning-progress";
 
-// ─── Types for Student View ───
+// ─── Types ───
 
 type DayType =
   | 'ORIENTATION'
@@ -69,6 +64,8 @@ interface StudentTask {
   requiresSubmission: boolean;
   requiresMentorReview: boolean;
   prerequisites?: StudentTaskPrerequisite[];
+  type?: 'PRACTICE' | 'BUILD' | 'ASSESSMENT' | 'MENTOR_REVIEW';
+  isRequired?: boolean;
 }
 
 interface StudentLearningContent {
@@ -98,6 +95,7 @@ interface StudentDay {
 
 interface StudentWeek {
   id: string;
+  order: number;
   title: string;
   goal: string;
   days: StudentDay[];
@@ -116,207 +114,21 @@ interface StudentCurriculum {
   phases: StudentPhase[];
 }
 
-// ─── Mock Student Curriculums with Video and Prerequisite setup ───
+interface CurriculumVersionRaw {
+  id: string;
+  version: number;
+  phases: StudentPhase[];
+}
 
-const MOCK_FRONTEND_CURRICULUM: StudentCurriculum = {
-  programName: "Frontend Development",
-  durationLabel: "1 Month (30 Days)",
-  phases: [
-    {
-      id: "fs_ph1",
-      title: "Phase 1: Web Foundations",
-      description: "Learn HTML5, CSS3, responsive design, and version control tools.",
-      weeks: [
-        {
-          id: "fs_wk1",
-          title: "Week 1: Tools & Layouts",
-          goal: "Get your local environment configured and build clean layouts.",
-          days: [
-            {
-              id: "fs_d1",
-              dayNumber: 1,
-              title: "Environment Setup & VS Code",
-              type: "ORIENTATION",
-              description: "Prepare your local dev environment, Git credentials, and code editor extension configurations.",
-              estimatedMinutes: 120,
-              objectives: [
-                "Install Node.js LTS and verify NPM works",
-                "Set up VS Code with recommended linting extensions",
-                "Create a personal GitHub repository for assignments",
-              ],
-              learningContent: [
-                {
-                  id: "lc_vid_01",
-                  order: 1,
-                  type: "VIDEO",
-                  title: "Introduction to React & JSX",
-                  description: "Watch this video to learn component models and JSX basics.",
-                  url: "https://www.youtube.com/watch?v=Ke90Tje7VS0",
-                  isRequired: true,
-                  videoLessonId: "vid_react_intro",
-                  completionThreshold: 90
-                },
-                {
-                  id: "lc_doc_01",
-                  order: 2,
-                  type: "DOCUMENTATION",
-                  title: "Vite Getting Started Documentation",
-                  description: "Learn how to configure Vite for web development.",
-                  url: "https://vite.dev/guide/",
-                  isRequired: false
-                }
-              ],
-              tasks: [
-                {
-                  id: "fs_task1_1",
-                  title: "Install Dev Tools & VS Code Extensions",
-                  description: "Install Node.js, Git, and VS Code Extensions (ESLint, Prettier).",
-                  instructions: "Download from nodejs.org, verify version, install extensions in VS Code, and capture a terminal screenshot showing 'node -v'.",
-                  estimatedMinutes: 30,
-                  requiresSubmission: false,
-                  requiresMentorReview: false,
-                  prerequisites: [
-                    {
-                      id: "pr_t1_1",
-                      type: "REQUIRED_LEARNING_CONTENT",
-                      targetId: "lc_vid_01"
-                    }
-                  ]
-                },
-                {
-                  id: "fs_task1_2",
-                  title: "GitHub Profile & Repository Setup",
-                  description: "Create your student repository on GitHub.",
-                  instructions: "Create a repository called 'hunarbee-frontend-bootcamp'. Initialize with a README.md and .gitignore. Submit the repository link.",
-                  estimatedMinutes: 30,
-                  requiresSubmission: true,
-                  requiresMentorReview: true,
-                },
-              ],
-              resources: [
-                { id: "fs_res1_1", title: "Git and GitHub Starter Guide", type: "LINK", url: "https://docs.github.com/en/get-started", description: "Official GitHub starting guide." },
-                { id: "fs_res1_2", title: "Prettier VS Code Extension Setup", type: "DOCUMENTATION", url: "https://prettier.io/docs/en/editors.html", description: "Official integration guide." },
-              ],
-            },
-            {
-              id: "fs_d2",
-              dayNumber: 2,
-              title: "HTML5 Semantic Structure",
-              type: "LEARNING",
-              description: "Learn layout tags like main, section, nav, and why semantic HTML is essential for SEO and accessibility.",
-              estimatedMinutes: 150,
-              objectives: [
-                "Understand the difference between semantic and non-semantic HTML",
-                "Build a content outline using proper header levels",
-                "Implement metadata tags inside the head section",
-              ],
-              learningContent: [
-                {
-                  id: "lc_vid_02",
-                  order: 1,
-                  type: "VIDEO",
-                  title: "useState in Practice",
-                  description: "Master component state updates and form control patterns.",
-                  url: "https://www.w3schools.com/html/mov_bbb.mp4",
-                  isRequired: true,
-                  videoLessonId: "vid_react_state",
-                  completionThreshold: 90
-                }
-              ],
-              tasks: [
-                {
-                  id: "fs_task2_1",
-                  title: "Write a Semantic Outline Page",
-                  description: "Create an HTML document showing a clean semantic structure.",
-                  instructions: "Use header, nav, main, article, section, aside, and footer. Add an image and some paragraphs. Do not style it yet.",
-                  estimatedMinutes: 60,
-                  requiresSubmission: true,
-                  requiresMentorReview: false,
-                  prerequisites: [
-                    {
-                      id: "pr_t2_1",
-                      type: "VIDEO_COMPLETED",
-                      targetId: "lc_vid_02"
-                    }
-                  ]
-                },
-              ],
-              resources: [
-                { id: "fs_res2_1", title: "MDN HTML Semantics", type: "DOCUMENTATION", url: "https://developer.mozilla.org/en-US/docs/Glossary/Semantics", description: "MDN reference guide." },
-              ],
-            },
-            {
-              id: "fs_d3",
-              dayNumber: 3,
-              title: "CSS Layouts with Flexbox",
-              type: "LEARNING",
-              description: "Deep dive into CSS Flexbox properties, layout alignments, and flexible styling rules.",
-              estimatedMinutes: 180,
-              objectives: [
-                "Understand flex container vs flex item properties",
-                "Master justify-content, align-items, and flex-wrap properties",
-                "Build a responsive nav bar using flexbox",
-              ],
-              learningContent: [
-                {
-                  id: "lc_vid_03_reused",
-                  order: 1,
-                  type: "VIDEO",
-                  title: "Introduction to React & JSX (Reused - Optional)",
-                  description: "Optional recap of components and JSX basics.",
-                  url: "https://www.youtube.com/watch?v=Ke90Tje7VS0",
-                  isRequired: false,
-                  videoLessonId: "vid_react_intro",
-                  completionThreshold: 50
-                }
-              ],
-              tasks: [
-                {
-                  id: "fs_task3_1",
-                  title: "Responsive Flexbox Navigation",
-                  description: "Style your navigation bar using Flexbox alignment rules.",
-                  instructions: "Add flex classes, spread nav items across space-between, center vertically, and add a toggle button for mobile views.",
-                  estimatedMinutes: 90,
-                  requiresSubmission: true,
-                  requiresMentorReview: true,
-                  prerequisites: [
-                    {
-                      id: "pr_t3_unsupported",
-                      type: "QUIZ_PASSED",
-                      targetId: "quiz_101"
-                    }
-                  ]
-                },
-              ],
-              resources: [
-                { id: "fs_res3_1", title: "Flexbox Froggy Game", type: "VIDEO", url: "https://flexboxfroggy.com/", description: "Interactive CSS puzzle game." },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  ],
-};
-
-const DAY_TYPE_BADGES: Record<DayType, { label: string; bg: string; text: string }> = {
-  ORIENTATION: { label: "Orientation", bg: "bg-indigo-500/10 dark:bg-indigo-500/5", text: "text-indigo-600 dark:text-indigo-400" },
-  LEARNING: { label: "Learning", bg: "bg-blue-500/10 dark:bg-blue-500/5", text: "text-blue-600 dark:text-blue-400" },
-  TASK: { label: "Task", bg: "bg-amber-500/10 dark:bg-amber-500/5", text: "text-amber-600 dark:text-amber-400" },
-  PROJECT: { label: "Project", bg: "bg-purple-500/10 dark:bg-purple-500/5", text: "text-purple-600 dark:text-purple-400" },
-  MENTOR_REVIEW: { label: "Mentor Review", bg: "bg-teal-500/10 dark:bg-teal-500/5", text: "text-teal-600 dark:text-teal-400" },
-  SUBMISSION: { label: "Submission", bg: "bg-emerald-500/10 dark:bg-emerald-500/5", text: "text-emerald-600 dark:text-emerald-400" },
-  ASSESSMENT: { label: "Assessment", bg: "bg-orange-500/10 dark:bg-orange-500/5", text: "text-orange-600 dark:text-orange-400" },
-  BREAK: { label: "Break", bg: "bg-slate-500/10 dark:bg-slate-500/5", text: "text-slate-600 dark:text-slate-400" },
-};
-
-const RESOURCE_ICONS: Record<ResourceType, React.ElementType> = {
-  LINK: ExternalLink,
-  VIDEO: Play,
-  PDF: FileText,
-  ARTICLE: BookOpen,
-  DOCUMENTATION: FileText,
-};
+interface CurriculumTemplateRaw {
+  id: string;
+  templateName: string;
+  programId: string;
+  planId: string;
+  durationDays: number;
+  currentPublishedVersionId: string | null;
+  versions: CurriculumVersionRaw[];
+}
 
 export default function StudentInternshipPage() {
   const router = useRouter();
@@ -324,19 +136,23 @@ export default function StudentInternshipPage() {
   const [loading, setLoading] = useState(true);
 
   // Curriculum State
-  const [curriculum, setCurriculum] = useState<StudentCurriculum>(MOCK_FRONTEND_CURRICULUM);
-  const [activePhaseIdx, setActivePhaseIdx] = useState(0);
-  const [activeWeekIdx, setActiveWeekIdx] = useState(0);
-  const [expandedDayId, setExpandedDayId] = useState<string | null>("fs_d1");
+  const [curriculum, setCurriculum] = useState<StudentCurriculum | null>(null);
+  const [allDaysList, setAllDaysList] = useState<StudentDay[]>([]);
+  
+  // Navigation / Drawer State
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [previewDay, setPreviewDay] = useState<StudentDay | null>(null);
 
   // Student Task Submit Progress local storage state: map of taskId -> { checked: boolean, status: 'NOT_SUBMITTED' | 'SUBMITTED' | 'APPROVED' }
   const [progress, setProgress] = useState<Record<string, { checked: boolean; status: string }>>({});
-
-  // Student Learning Video Progress map from contentId -> LearningProgress
   const [learningProgress, setLearningProgress] = useState<Record<string, LearningProgress>>({});
-  
-  // Active playing video
   const [activeVideo, setActiveVideo] = useState<StudentLearningContent | null>(null);
+
+  // Submission form state
+  const [submittingTaskId, setSubmittingTaskId] = useState<string | null>(null);
+  const [githubUrl, setGithubUrl] = useState("");
+  const [liveUrl, setLiveUrl] = useState("");
+  const [notes, setNotes] = useState("");
 
   const activeEnrollment = home?.enrollments[0] || null;
 
@@ -366,7 +182,6 @@ export default function StudentInternshipPage() {
 
           const activeEnrollment = data.enrollments[0];
           if (activeEnrollment) {
-            // Load completion progress from localStorage specific to student enrollment
             const savedProgress = localStorage.getItem(`hunarbee_student_progress_${activeEnrollment.id}`);
             if (savedProgress) {
               try {
@@ -382,22 +197,22 @@ export default function StudentInternshipPage() {
               .then((res) => res.json())
               .then((resData) => {
                 if (!cancelled && resData?.success && Array.isArray(resData.data) && resData.data.length > 0) {
-                  const loadedTemplates = resData.data;
+                  const loadedTemplates = resData.data as CurriculumTemplateRaw[];
                   const progIdNormalized = activeEnrollment.programId.startsWith("prog_")
                     ? activeEnrollment.programId
                     : `prog_${activeEnrollment.programId}`;
 
                   const expectedDays = activeEnrollment.durationId.includes("3") ? 90 : 30;
                   
-                  const matchedTmpl = loadedTemplates.find((t: any) => {
+                  const matchedTmpl = loadedTemplates.find((t) => {
                     const matchesProg = t.programId === progIdNormalized || t.programId === activeEnrollment.programId;
                     const matchesDur = t.durationDays === expectedDays || t.planId === activeEnrollment.durationId;
                     return matchesProg && matchesDur;
                   });
 
                   if (matchedTmpl) {
-                    const version = matchedTmpl.versions.find((v: any) => v.id === matchedTmpl.currentPublishedVersionId)
-                      || [...matchedTmpl.versions].sort((a: any, b: any) => b.version - a.version)[0];
+                    const version = matchedTmpl.versions.find((v) => v.id === matchedTmpl.currentPublishedVersionId)
+                      || [...matchedTmpl.versions].sort((a, b) => b.version - a.version)[0];
                     
                     if (version) {
                       const mappedCurriculum: StudentCurriculum = {
@@ -407,11 +222,16 @@ export default function StudentInternshipPage() {
                       };
                       setCurriculum(mappedCurriculum);
 
-                      // Auto expand first day of first week of first phase if available
-                      const firstDay = version.phases[0]?.weeks[0]?.days[0];
-                      if (firstDay) {
-                        setExpandedDayId(firstDay.id);
-                      }
+                      // Flatten all days in order
+                      const flatDays: StudentDay[] = [];
+                      version.phases.forEach((p) => {
+                        p.weeks.forEach((w) => {
+                          w.days.forEach((d) => {
+                            flatDays.push(d);
+                          });
+                        });
+                      });
+                      setAllDaysList(flatDays);
                     }
                   }
                 }
@@ -455,16 +275,25 @@ export default function StudentInternshipPage() {
   };
 
   const handleSubmittingTask = (taskId: string) => {
-    const current = progress[taskId] || { checked: false, status: "NOT_SUBMITTED" };
+    setSubmittingTaskId(taskId);
+    setGithubUrl("");
+    setLiveUrl("");
+    setNotes("");
+  };
+
+  const submitTaskForm = () => {
+    if (!submittingTaskId) return;
+    const current = progress[submittingTaskId] || { checked: false, status: "NOT_SUBMITTED" };
     const updated = {
       ...progress,
-      [taskId]: {
+      [submittingTaskId]: {
         ...current,
         checked: true, // Auto check when submitted
         status: "SUBMITTED",
       },
     };
     saveProgress(updated);
+    setSubmittingTaskId(null);
   };
 
   const handleSimulateReview = (taskId: string) => {
@@ -488,29 +317,87 @@ export default function StudentInternshipPage() {
       if (prereq.type === "REQUIRED_LEARNING_CONTENT") {
         const lc = dayLearningContent.find((item) => item.id === prereq.targetId);
         if (!lc) continue;
-        if (!lc.isRequired) continue; // must be required content
+        if (!lc.isRequired) continue;
         const lp = learningProgress[lc.id];
         if (!lp || !lp.completed) {
-          return true; // locked
+          return true;
         }
       } else if (prereq.type === "VIDEO_COMPLETED") {
         const lc = dayLearningContent.find((item) => item.id === prereq.targetId);
         if (!lc || lc.type !== "VIDEO") continue;
         const lp = learningProgress[lc.id];
         if (!lp || !lp.completed) {
-          return true; // locked
+          return true;
         }
       } else {
-        // QUIZ_PASSED, READING_COMPLETED, PREVIOUS_TASK_COMPLETED are unsupported in this phase and lock the task
         return true;
       }
     }
     return false;
   };
 
+  // Mark Article/Docs as read
+  const handleMarkAsRead = async (lcId: string) => {
+    if (!activeEnrollment) return;
+    try {
+      const LPService = await import("@/lib/learning-progress");
+      await LPService.saveLearningProgress(activeEnrollment.id, lcId, {
+        completed: true,
+        progressPercentage: 100,
+      });
+      loadLearningProgress(activeEnrollment.id);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // ─── Step Check Helpers ───
+
+  const isLearnComplete = (day: StudentDay) => {
+    const required = (day.learningContent || []).filter((lc) => lc.isRequired);
+    if (required.length === 0) return true;
+    return required.every((lc) => learningProgress[lc.id]?.completed);
+  };
+
+  const isPracticeComplete = (day: StudentDay) => {
+    const requiredPractice = (day.tasks || []).filter((t) => t.type === "PRACTICE" && t.isRequired !== false);
+    if (requiredPractice.length === 0) return true;
+    return requiredPractice.every((t) => progress[t.id]?.checked);
+  };
+
+  const isBuildComplete = (day: StudentDay) => {
+    const requiredBuild = (day.tasks || []).filter((t) => (t.type === "BUILD" || (!t.type && t.requiresSubmission)) && t.isRequired !== false);
+    if (requiredBuild.length === 0) return true;
+    return requiredBuild.every((t) => progress[t.id]?.checked);
+  };
+
+  const isSubmitComplete = (day: StudentDay) => {
+    const requiredBuild = (day.tasks || []).filter((t) => (t.type === "BUILD" || (!t.type && t.requiresSubmission)) && t.isRequired !== false);
+    const submissionRequired = requiredBuild.filter((t) => t.requiresSubmission);
+    if (submissionRequired.length === 0) return true;
+    return submissionRequired.every((t) => {
+      const status = progress[t.id]?.status;
+      return status === "SUBMITTED" || status === "APPROVED";
+    });
+  };
+
+  const isDayCompleted = (day: StudentDay) => {
+    return (
+      isLearnComplete(day) &&
+      isPracticeComplete(day) &&
+      isBuildComplete(day) &&
+      isSubmitComplete(day)
+    );
+  };
+
+  const isDayUnlocked = (day: StudentDay, index: number) => {
+    if (index <= 0) return true;
+    return isDayCompleted(allDaysList[index - 1]);
+  };
+
   if (loading) {
     return (
-      <div className="flex py-32 items-center justify-center">
+      <div className="flex py-32 items-center justify-center bg-surface-elevated min-h-screen">
         <div className="text-center space-y-2">
           <Loader2 className="h-8 w-8 animate-spin text-honey mx-auto" />
           <p className="text-xs text-slate">Loading internship curriculum…</p>
@@ -519,482 +406,775 @@ export default function StudentInternshipPage() {
     );
   }
 
-  const activePhase = curriculum.phases[activePhaseIdx];
-  const activeWeek = activePhase?.weeks[activeWeekIdx];
+  if (!curriculum || allDaysList.length === 0) {
+    return (
+      <PortalShell>
+        <div className="mx-auto max-w-6xl space-y-6 flex py-32 items-center justify-center min-h-[calc(100vh-140px)]">
+          <div className="text-center space-y-2">
+            <h2 className="text-xl font-bold tracking-tight text-navy">Curriculum pending</h2>
+            <p className="text-xs text-slate">No curriculum assigned yet. Please check back later.</p>
+          </div>
+        </div>
+      </PortalShell>
+    );
+  }
 
-  // Calculate totals for progress reporting
-  let totalTasks = 0;
-  let completedTasks = 0;
+  // ─── autoritatives state calculations ───
+  const totalDays = allDaysList.length;
+  const startDateStr = activeEnrollment?.startDate || activeEnrollment?.preferredBatch || "";
+  
+  let calendarDayNumber = 1;
+  let internshipStarted = false;
+  let internshipCompleted = false;
+  let expectedEndDateFormatted = "";
 
-  curriculum.phases.forEach((p) => {
-    p.weeks.forEach((w) => {
-      w.days.forEach((d) => {
-        d.tasks.forEach((t) => {
-          totalTasks++;
-          if (progress[t.id]?.checked) {
-            completedTasks++;
-          }
-        });
+  if (startDateStr) {
+    const start = new Date(startDateStr);
+    if (!isNaN(start.getTime())) {
+      start.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const diffTime = today.getTime() - start.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      calendarDayNumber = diffDays + 1;
+      internshipStarted = diffDays >= 0;
+
+      const end = new Date(start);
+      end.setDate(start.getDate() + (totalDays - 1));
+      expectedEndDateFormatted = end.toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
       });
+    } else {
+      expectedEndDateFormatted = "Flexible";
+      internshipStarted = true;
+    }
+  }
+
+  // Find Current Mission Day (first unlocked and incomplete)
+  let currentMissionIdx = -1;
+  let currentMissionDay: StudentDay | null = null;
+
+  for (let i = 0; i < allDaysList.length; i++) {
+    const day = allDaysList[i];
+    const completed = isDayCompleted(day);
+    const unlocked = isDayUnlocked(day, i);
+    if (!completed && unlocked) {
+      currentMissionDay = day;
+      currentMissionIdx = i;
+      break;
+    }
+  }
+
+  // Check if fully completed
+  const completedDaysCount = allDaysList.filter(isDayCompleted).length;
+  if (completedDaysCount === totalDays) {
+    internshipCompleted = true;
+  }
+
+  // If no day is current mission because they are all locked (should not happen chronologically), fallback to Day 1
+  if (!currentMissionDay && !internshipCompleted) {
+    currentMissionDay = allDaysList[0];
+    currentMissionIdx = 0;
+  }
+
+  // Overall metric counters
+  let totalRequiredLessons = 0;
+  let completedRequiredLessons = 0;
+  let totalRequiredTasks = 0;
+  let completedRequiredTasks = 0;
+
+  allDaysList.forEach((d) => {
+    (d.learningContent || []).forEach((lc) => {
+      if (lc.isRequired) {
+        totalRequiredLessons++;
+        if (learningProgress[lc.id]?.completed) {
+          completedRequiredLessons++;
+        }
+      }
+    });
+
+    (d.tasks || []).forEach((t) => {
+      if (t.isRequired !== false) {
+        totalRequiredTasks++;
+        if (progress[t.id]?.checked) {
+          completedRequiredTasks++;
+        }
+      }
     });
   });
 
-  const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  const activeDay = previewDay || currentMissionDay || allDaysList[0];
+
+  // Stepper state for Active Day
+  const learnDone = isLearnComplete(activeDay);
+  const practiceDone = isPracticeComplete(activeDay);
+  const buildDone = isBuildComplete(activeDay);
+  const submitDone = isSubmitComplete(activeDay);
+
+  const practiceTasks = (activeDay.tasks || []).filter((t) => t.type === "PRACTICE");
+  const buildTasks = (activeDay.tasks || []).filter((t) => t.type === "BUILD" || (!t.type && t.requiresSubmission));
+  const hasPracticeStep = practiceTasks.length > 0;
+  const hasBuildStep = buildTasks.length > 0;
+
+  const buildRequiresSubmission = buildTasks.some((t) => t.requiresSubmission);
+  const hasSubmitStep = buildTasks.length > 0 && buildRequiresSubmission;
 
   return (
     <PortalShell>
-      <div className="mx-auto max-w-6xl space-y-6">
-        {/* Top Header Card */}
-        <div className="rounded-2xl border border-navy/10 bg-white p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="mx-auto max-w-5xl space-y-6 pb-16">
+        
+        {/* Personalized Welcoming Card */}
+        <div className="rounded-2xl border border-navy/5 bg-surface-elevated p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1">
-            <h2 className="text-xl font-bold tracking-tight text-navy">My Internship</h2>
-            <p className="text-sm text-slate">
-              {curriculum.programName} · <span className="font-semibold text-navy/70">{curriculum.durationLabel}</span>
+            <h2 className="text-xl font-bold tracking-tight text-navy flex items-center gap-2">
+              Good morning, {home?.user.name.split(" ")[0]} 👋
+            </h2>
+            <p className="text-sm font-semibold text-slate uppercase tracking-wider">
+              {curriculum.programName}
             </p>
-            {activeEnrollment && (
-              <p className="text-xs text-slate/60">
-                Batch: {activeEnrollment.preferredBatch ? formatBatchDate(activeEnrollment.preferredBatch) : "Flexible Start"}
-              </p>
+            {startDateStr && (
+              <div className="text-xs text-slate space-y-0.5 mt-2">
+                <p>Started: <span className="font-semibold text-navy">{formatBatchDate(startDateStr)}</span></p>
+                <p>Expected Completion: <span className="font-semibold text-navy">{expectedEndDateFormatted}</span></p>
+              </div>
             )}
           </div>
 
-          {/* Progress Tracker Widget */}
-          <div className="flex items-center gap-4 border-l border-navy/5 pl-0 md:pl-6 shrink-0">
-            <div className="relative h-16 w-16 shrink-0">
-              <svg className="h-full w-full" viewBox="0 0 36 36">
-                <path
-                  className="text-navy/[0.05]"
-                  strokeWidth="3.5"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                <motion.path
-                  className="text-honey-deep"
-                  strokeWidth="3.5"
-                  strokeDasharray={`${progressPercent}, 100`}
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                  initial={{ strokeDasharray: "0, 100" }}
-                  animate={{ strokeDasharray: `${progressPercent}, 100` }}
-                  transition={{ duration: 0.8, ease: "easeOut" }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-navy">
-                {progressPercent}%
-              </div>
+          {/* Separation of Calendar and Progression labels */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 border-l border-navy/5 pl-0 md:pl-6 shrink-0 text-xs">
+            <div className="space-y-0.5">
+              <span className="font-semibold text-slate uppercase tracking-wider text-[10px]">Calendar</span>
+              <p className="text-sm font-bold text-navy">
+                {!internshipStarted
+                  ? "Not Started Yet"
+                  : calendarDayNumber > totalDays
+                  ? "Completed"
+                  : `Day ${calendarDayNumber} of ${totalDays}`}
+              </p>
             </div>
-            <div>
-              <p className="text-xs font-semibold text-slate uppercase tracking-wider">Overall Progress</p>
-              <p className="text-sm font-bold text-navy mt-0.5">
-                {completedTasks} of {totalTasks} Tasks Completed
+            <div className="space-y-0.5">
+              <span className="font-semibold text-slate uppercase tracking-wider text-[10px]">Current Mission</span>
+              <p className="text-sm font-bold text-honey-deep">
+                {internshipCompleted
+                  ? "Fully Complete!"
+                  : currentMissionDay
+                  ? `Day ${currentMissionDay.dayNumber}`
+                  : "N/A"}
+              </p>
+            </div>
+            <div className="space-y-0.5 col-span-2 sm:col-span-1">
+              <span className="font-semibold text-slate uppercase tracking-wider text-[10px]">Internship Progress</span>
+              <p className="text-sm font-bold text-navy">
+                {completedDaysCount} of {totalDays} Days Done
               </p>
             </div>
           </div>
         </div>
 
-        {/* Workspace Layout */}
-        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-          {/* Left Column: Navigation Sidebar */}
-          <div className="space-y-4">
-            {/* Phase Selector Tabs */}
-            <div className="rounded-2xl border border-navy/10 bg-white p-2.5 shadow-sm space-y-1">
-              <p className="text-[10px] font-bold uppercase text-slate tracking-wider mb-2 px-2.5 pt-1">
-                Internship Phases
-              </p>
-              {curriculum.phases.map((phase, idx) => {
-                const isActive = activePhaseIdx === idx;
-                return (
-                  <button
-                    key={phase.id}
-                    onClick={() => {
-                      setActivePhaseIdx(idx);
-                      setActiveWeekIdx(0);
-                    }}
-                    className={cn(
-                      "w-full text-left rounded-xl px-3 py-2 text-xs font-semibold transition flex items-center justify-between",
-                      isActive
-                        ? "bg-honey/10 text-honey-deep font-bold"
-                        : "text-slate hover:bg-navy/[0.03] hover:text-navy"
-                    )}
-                  >
-                    <span className="truncate">{phase.title.split(":")[1]?.trim() || phase.title}</span>
-                    {isActive && <ChevronRight className="h-3.5 w-3.5" />}
-                  </button>
-                );
-              })}
-            </div>
+        {/* Global Progress Metrics Accordion */}
+        <div className="rounded-2xl border border-navy/5 bg-surface-elevated p-4 shadow-sm flex flex-wrap gap-x-8 gap-y-2 text-xs font-semibold text-slate">
+          <div>
+            Required Lessons: <span className="text-navy font-bold">{completedRequiredLessons} of {totalRequiredLessons}</span> completed
+          </div>
+          <div>
+            Required Tasks: <span className="text-navy font-bold">{completedRequiredTasks} of {totalRequiredTasks}</span> checked
+          </div>
+        </div>
 
-            {/* Weeks Navigation */}
-            {activePhase && (
-              <div className="rounded-2xl border border-navy/10 bg-white p-2.5 shadow-sm space-y-1">
-                <p className="text-[10px] font-bold uppercase text-slate tracking-wider mb-2 px-2.5 pt-1">
-                  Active Phase Weeks
-                </p>
-                {activePhase.weeks.map((week, idx) => {
-                  const isActive = activeWeekIdx === idx;
-                  return (
-                    <button
-                      key={week.id}
-                      onClick={() => setActiveWeekIdx(idx)}
-                      className={cn(
-                        "w-full text-left rounded-xl px-3 py-2 text-xs font-semibold transition flex items-center gap-2",
-                        isActive
-                          ? "bg-navy text-white font-bold"
-                          : "text-slate hover:bg-navy/[0.03] hover:text-navy"
-                      )}
-                    >
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/10 text-[9px] font-bold border border-current">
-                        W{idx + 1}
-                      </span>
-                      <span className="truncate">{week.title.split(":")[1]?.trim() || week.title}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+        {/* Outer State Messages */}
+        {!internshipStarted && startDateStr && (
+          <div className="rounded-2xl border border-blue-500/10 bg-blue-500/5 p-4 text-center text-sm font-semibold text-blue-600">
+            Your internship starts on {formatBatchDate(startDateStr)}
+          </div>
+        )}
+
+        {internshipCompleted && (
+          <div className="rounded-2xl border border-emerald-500/10 bg-emerald-500/5 p-6 text-center space-y-2">
+            <h3 className="text-lg font-bold text-emerald-800">🎉 Congratulations!</h3>
+            <p className="text-sm text-emerald-700">You have completed all days and requirements of your internship.</p>
+          </div>
+        )}
+
+        {/* Workspace Layout */}
+        <div className="space-y-6">
+          
+          {/* Header Action bar: View Curriculum Trigger */}
+          <div className="flex justify-between items-center bg-surface-elevated border border-navy/5 p-3 rounded-xl">
+            <div className="text-xs font-bold text-navy">
+              {previewDay ? (
+                <span className="text-red-500 flex items-center gap-1.5 animate-pulse">
+                  ⚠️ Previewing Day {previewDay.dayNumber}
+                </span>
+              ) : (
+                <span>📍 Today&apos;s Mission: Day {activeDay.dayNumber}</span>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {previewDay && (
+                <Button
+                  onClick={() => setPreviewDay(null)}
+                  variant="secondary"
+                  size="sm"
+                  className="h-8 text-xs font-bold text-navy border border-navy/10 bg-surface"
+                >
+                  Go to Today&apos;s Mission
+                </Button>
+              )}
+              
+              <Button
+                onClick={() => setIsDrawerOpen(true)}
+                size="sm"
+                className="h-8 text-xs font-bold bg-navy text-white hover:bg-navy-soft"
+              >
+                <Menu className="h-4.5 w-4.5 mr-1" /> View Curriculum
+              </Button>
+            </div>
           </div>
 
-          {/* Right Column: Main Days Curriculum Flow */}
-          <div className="space-y-4">
-            {activeWeek ? (
-              <>
-                {/* Week Header */}
-                <div className="rounded-2xl bg-gradient-to-r from-navy/5 to-transparent px-5 py-4 border border-navy/5">
-                  <h3 className="text-sm font-bold text-navy uppercase tracking-wider">{activeWeek.title}</h3>
-                  {activeWeek.goal && <p className="text-xs text-slate mt-1 italic">{activeWeek.goal}</p>}
-                </div>
+          {/* Active Day Content Panel */}
+          <div className="space-y-6">
+            
+            {/* Mission Hero Header Card */}
+            <div className="rounded-2xl border border-navy/5 bg-surface-elevated p-6 shadow-sm space-y-4">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-honey-deep">
+                  {previewDay ? "Curriculum Preview" : "Today's Mission"}
+                </span>
+                <h3 className="text-lg font-extrabold text-navy mt-1">
+                  Day {activeDay.dayNumber}: {activeDay.title}
+                </h3>
+                <p className="text-xs text-slate mt-1.5 leading-relaxed">
+                  {activeDay.description || "Learn today's objectives and complete the tasks to progress."}
+                </p>
+              </div>
 
-                {/* Days Accordion */}
-                <div className="space-y-3">
-                  {activeWeek.days.map((day) => {
-                    const isExpanded = expandedDayId === day.id;
-                    const badge = DAY_TYPE_BADGES[day.type];
-                    const dayLearning = day.learningContent || [];
+              {/* Day Workflow Stepper Panel */}
+              <div className="border-t border-navy/5 pt-4">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-xs font-bold">
+                  {/* LEARN Step Indicator */}
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "flex h-6 w-6 items-center justify-center rounded-full text-[10px] transition",
+                      learnDone ? "bg-emerald-500 text-white" : "bg-honey/15 text-honey-deep"
+                    )}>
+                      {learnDone ? "✓" : "1"}
+                    </span>
+                    <span className={learnDone ? "text-slate/60 line-through" : "text-navy"}>LEARN</span>
+                  </div>
+
+                  {/* PRACTICE Step Indicator */}
+                  {hasPracticeStep && (
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "flex h-6 w-6 items-center justify-center rounded-full text-[10px] transition",
+                        practiceDone ? "bg-emerald-500 text-white" : "bg-navy/5 text-slate"
+                      )}>
+                        {practiceDone ? "✓" : "2"}
+                      </span>
+                      <span className={practiceDone ? "text-slate/60 line-through" : "text-navy"}>
+                        PRACTICE {practiceTasks.every(t => t.isRequired === false) && <span className="text-[9px] text-slate font-medium">(Optional)</span>}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* BUILD Step Indicator */}
+                  {hasBuildStep && (
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "flex h-6 w-6 items-center justify-center rounded-full text-[10px] transition",
+                        buildDone ? "bg-emerald-500 text-white" : "bg-navy/5 text-slate"
+                      )}>
+                        {buildDone ? "✓" : hasPracticeStep ? "3" : "2"}
+                      </span>
+                      <span className={buildDone ? "text-slate/60 line-through" : "text-navy"}>
+                        BUILD {buildTasks.every(t => t.isRequired === false) && <span className="text-[9px] text-slate font-medium">(Optional)</span>}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* SUBMIT Step Indicator */}
+                  {hasSubmitStep && (
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "flex h-6 w-6 items-center justify-center rounded-full text-[10px] transition",
+                        submitDone ? "bg-emerald-500 text-white" : "bg-navy/5 text-slate"
+                      )}>
+                        {submitDone ? "✓" : hasPracticeStep ? "4" : "3"}
+                      </span>
+                      <span className={submitDone ? "text-slate/60 line-through" : "text-navy"}>SUBMIT</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Stepper Part 1: LEARN Section */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-extrabold uppercase tracking-widest text-slate">① LEARN</h4>
+              
+              {activeDay.learningContent && activeDay.learningContent.length > 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {activeDay.learningContent.map((lc) => {
+                    const lp = learningProgress[lc.id];
+                    const isCompleted = lp?.completed || false;
+                    const progressPct = lp?.progressPercentage || 0;
 
                     return (
                       <div
-                        key={day.id}
-                        className="rounded-2xl border border-navy/10 bg-white shadow-sm overflow-hidden"
+                        key={lc.id}
+                        className={cn(
+                          "rounded-xl border p-4 flex flex-col justify-between transition-all bg-surface-elevated",
+                          isCompleted ? "border-emerald-500/10 bg-emerald-500/[0.01]" : "border-navy/5"
+                        )}
                       >
-                        {/* Day Header Trigger */}
-                        <button
-                          onClick={() => setExpandedDayId(isExpanded ? null : day.id)}
-                          className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-navy/[0.01] transition"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-navy text-white text-xs font-bold shadow-sm">
-                              {day.dayNumber}
+                        <div className="space-y-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <h5 className="text-xs font-bold text-navy leading-snug">{lc.title}</h5>
+                            <span className={cn(
+                              "rounded px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wider shrink-0",
+                              lc.type === "VIDEO" ? "bg-amber-500/10 text-amber-600" : "bg-blue-500/10 text-blue-600"
+                            )}>
+                              {lc.type}
                             </span>
-                            <div className="min-w-0">
-                              <h4 className="text-sm font-bold text-navy truncate">{day.title}</h4>
-                              <p className="text-[10px] text-slate mt-0.5">
-                                {dayLearning.length} items · {day.tasks.length} tasks · {day.estimatedMinutes} mins
-                              </p>
+                          </div>
+                          <p className="text-[11px] text-slate leading-relaxed">{lc.description}</p>
+                        </div>
+
+                        <div className="mt-4 flex items-center justify-between border-t border-navy/5 pt-2.5">
+                          <span className="text-[9px] font-bold">
+                            {lc.isRequired ? <span className="text-red-500">* Required</span> : <span className="text-slate/40">Optional</span>}
+                          </span>
+
+                          {lc.type === "VIDEO" ? (
+                            <div className="flex items-center gap-2">
+                              {isCompleted ? (
+                                <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                                  ✓ Completed
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-slate font-semibold">
+                                  {progressPct}% Complete
+                                </span>
+                              )}
+                              <Button
+                                size="sm"
+                                onClick={() => activeEnrollment && setActiveVideo(lc)}
+                                className="h-6 px-2.5 text-[9px] flex items-center gap-1"
+                              >
+                                <Play className="h-2.5 w-2.5 fill-current" /> Watch Lesson
+                              </Button>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className={cn("rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider", badge.bg, badge.text)}>
-                              {badge.label}
-                            </span>
-                            <ChevronDown className={cn("h-4 w-4 text-slate transition-transform", isExpanded && "rotate-180")} />
-                          </div>
-                        </button>
-
-                        {/* Day Details */}
-                        <AnimatePresence initial={false}>
-                          {isExpanded && (
-                            <motion.div
-                              initial={{ height: 0 }}
-                              animate={{ height: "auto" }}
-                              exit={{ height: 0 }}
-                              transition={{ duration: 0.25, ease: "easeInOut" }}
-                              className="overflow-hidden border-t border-navy/5"
-                            >
-                              <div className="p-5 space-y-5 bg-surface-elevated/20">
-                                {day.description && (
-                                  <p className="text-xs text-slate leading-relaxed">{day.description}</p>
-                                )}
-
-                                {/* Objectives */}
-                                {day.objectives.length > 0 && (
-                                  <div className="space-y-2">
-                                    <p className="text-[10px] font-bold uppercase text-slate tracking-wider">Learning Objectives</p>
-                                    <ul className="grid sm:grid-cols-2 gap-2">
-                                      {day.objectives.map((obj, idx) => (
-                                        <li key={idx} className="flex items-start gap-2 text-xs text-navy">
-                                          <CheckCircle2 className="h-3.5 w-3.5 text-honey shrink-0 mt-0.5" />
-                                          <span>{obj}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                )}
-
-                                {/* Learning Content Section */}
-                                {dayLearning.length > 0 && (
-                                  <div className="space-y-2">
-                                    <p className="text-[10px] font-bold uppercase text-slate tracking-wider">Required Learning & Lectures</p>
-                                    <div className="grid gap-3 sm:grid-cols-2">
-                                      {dayLearning.map((lc) => {
-                                        const lp = learningProgress[lc.id];
-                                        const isCompleted = lp?.completed || false;
-                                        const progressPct = lp?.progressPercentage || 0;
-
-                                        return (
-                                          <div
-                                            key={lc.id}
-                                            className={cn(
-                                              "rounded-xl border p-4 flex flex-col justify-between transition-all bg-white",
-                                              isCompleted ? "border-emerald-500/20 bg-emerald-500/[0.01]" : "border-navy/10"
-                                            )}
-                                          >
-                                            <div>
-                                              <div className="flex items-start justify-between gap-2">
-                                                <h5 className="text-xs font-bold text-navy leading-snug line-clamp-1">{lc.title}</h5>
-                                                <span className={cn(
-                                                  "rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider shrink-0",
-                                                  lc.type === "VIDEO" ? "bg-amber-500/10 text-amber-600" : "bg-blue-500/10 text-blue-600"
-                                                )}>
-                                                  {lc.type}
-                                                </span>
-                                              </div>
-                                              <p className="text-[11px] text-slate mt-1 line-clamp-2 leading-relaxed">{lc.description}</p>
-                                            </div>
-
-                                            <div className="mt-3 flex items-center justify-between border-t border-navy/5 pt-2.5">
-                                              <div className="text-[10px] font-medium text-slate">
-                                                {lc.isRequired ? (
-                                                  <span className="text-red-500 font-bold">* Required</span>
-                                                ) : (
-                                                  <span className="text-slate/60">Optional</span>
-                                                )}
-                                              </div>
-
-                                              {lc.type === "VIDEO" ? (
-                                                <div className="flex items-center gap-2">
-                                                  {isCompleted ? (
-                                                    <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
-                                                      <CheckCircle2 className="h-3.5 w-3.5 fill-current" /> Completed
-                                                    </span>
-                                                  ) : (
-                                                    <span className="text-[10px] text-slate font-semibold">
-                                                      {progressPct}% Complete
-                                                    </span>
-                                                  )}
-                                                  <Button
-                                                    size="sm"
-                                                    onClick={() => setActiveVideo(lc)}
-                                                    className="h-6 px-2.5 text-[9px] flex items-center gap-1"
-                                                  >
-                                                    <Play className="h-2.5 w-2.5 fill-current pl-0.5" />
-                                                    Watch Lesson
-                                                  </Button>
-                                                </div>
-                                              ) : (
-                                                <a
-                                                  href={lc.url}
-                                                  target="_blank"
-                                                  rel="noopener noreferrer"
-                                                  className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-500 hover:underline"
-                                                >
-                                                  Open Resource <ExternalLink className="h-3 w-3" />
-                                                </a>
-                                              )}
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Tasks */}
-                                {day.tasks.length > 0 && (
-                                  <div className="space-y-3">
-                                    <p className="text-[10px] font-bold uppercase text-slate tracking-wider">Day Tasks</p>
-                                    <div className="space-y-2.5">
-                                      {day.tasks.map((task) => {
-                                        const state = progress[task.id] || { checked: false, status: "NOT_SUBMITTED" };
-                                        const locked = isTaskLocked(task, day.learningContent || []);
-
-                                        return (
-                                          <div
-                                            key={task.id}
-                                            className={cn(
-                                              "rounded-xl border p-4 transition-all relative overflow-hidden",
-                                              locked
-                                                ? "border-slate-200 bg-slate-50/50 opacity-75"
-                                                : state.checked
-                                                ? "border-emerald-500/20 bg-emerald-500/[0.02]"
-                                                : "border-navy/10 bg-white"
-                                            )}
-                                          >
-                                            <div className="flex items-start gap-3 justify-between">
-                                              <div className="flex items-start gap-3 min-w-0">
-                                                <input
-                                                  type="checkbox"
-                                                  checked={state.checked}
-                                                  disabled={locked}
-                                                  onChange={() => toggleTaskChecked(task.id)}
-                                                  className="mt-1 h-4.5 w-4.5 rounded border-navy/20 accent-honey cursor-pointer shrink-0 disabled:cursor-not-allowed"
-                                                />
-                                                <div className="min-w-0">
-                                                  <p className={cn(
-                                                    "text-xs font-bold text-navy flex items-center gap-1.5",
-                                                    state.checked && "line-through text-slate"
-                                                  )}>
-                                                    {locked ? <Lock className="h-3.5 w-3.5 text-slate shrink-0" /> : <Unlock className="h-3.5 w-3.5 text-emerald-600 shrink-0" />}
-                                                    {task.title}
-                                                  </p>
-                                                  <p className="text-[11px] text-slate mt-1 leading-relaxed">{task.description}</p>
-                                                  
-                                                  {!locked && task.instructions && (
-                                                    <div className="mt-2 text-[10px] text-slate/80 bg-navy/[0.02] p-2 rounded-lg border border-navy/5 font-medium">
-                                                      <span className="font-bold text-navy">Instructions:</span> {task.instructions}
-                                                    </div>
-                                                  )}
-
-                                                  {/* Prerequisites Indicators list */}
-                                                  {task.prerequisites && task.prerequisites.length > 0 && (
-                                                    <div className="mt-3 p-3 rounded-xl border border-navy/5 bg-navy/[0.02] space-y-1.5">
-                                                      <p className="text-[9px] font-bold text-slate uppercase tracking-wider">Required Prerequisites</p>
-                                                      {task.prerequisites.map((prereq) => {
-                                                        const lc = day.learningContent?.find((item) => item.id === prereq.targetId);
-                                                        const lp = lc ? learningProgress[lc.id] : null;
-                                                        const isCompleted = lp?.completed || false;
-                                                        const progressPct = lp?.progressPercentage || 0;
-                                                        const isUnsupported = !["REQUIRED_LEARNING_CONTENT", "VIDEO_COMPLETED"].includes(prereq.type);
-
-                                                        let label = lc?.title || `Content #${prereq.targetId}`;
-                                                        if (prereq.type === "REQUIRED_LEARNING_CONTENT") {
-                                                          label = `Required: ${label}`;
-                                                        } else if (prereq.type === "VIDEO_COMPLETED") {
-                                                          label = `Watch Video: ${label}`;
-                                                        } else {
-                                                          label = `Prerequisite (${prereq.type})`;
-                                                        }
-
-                                                        return (
-                                                          <div key={prereq.id} className="flex items-center justify-between text-xs font-medium">
-                                                            <span className="flex items-center gap-1.5 text-navy">
-                                                              {isCompleted ? (
-                                                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 fill-current" />
-                                                              ) : (
-                                                                <AlertCircle className="h-3.5 w-3.5 text-slate/40 shrink-0" />
-                                                              )}
-                                                              <span className={cn(isCompleted && "text-slate/60 line-through")}>{label}</span>
-                                                            </span>
-                                                            {!isCompleted && (
-                                                              <span className={cn(
-                                                                "text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0",
-                                                                isUnsupported ? "bg-red-500/10 text-red-500" : "bg-navy/5 text-slate"
-                                                              )}>
-                                                                {isUnsupported ? "Unsupported" : `${progressPct}% complete`}
-                                                              </span>
-                                                            )}
-                                                          </div>
-                                                        );
-                                                      })}
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              </div>
-
-                                              {/* Badges and Actions */}
-                                              <div className="flex flex-col items-end gap-1.5 shrink-0 ml-4">
-                                                <span className="text-[9px] font-semibold text-slate bg-navy/5 px-2 py-0.5 rounded flex items-center gap-1">
-                                                  <Clock className="h-2.5 w-2.5" /> {task.estimatedMinutes}m
-                                                </span>
-                                                {locked ? (
-                                                  <span className="rounded-full bg-slate-200 border border-slate-300 px-2 py-0.5 text-[9px] font-bold text-slate-500">
-                                                    🔒 Task Locked
-                                                  </span>
-                                                ) : (
-                                                  task.requiresSubmission && (
-                                                    <>
-                                                      {state.status === "NOT_SUBMITTED" && (
-                                                        <Button
-                                                          onClick={() => handleSubmittingTask(task.id)}
-                                                          size="sm"
-                                                          className="h-6 px-2.5 text-[9px]"
-                                                        >
-                                                          Submit Work
-                                                        </Button>
-                                                      )}
-                                                      {state.status === "SUBMITTED" && (
-                                                        <div className="flex flex-col items-end gap-1">
-                                                          <span className="rounded-full bg-honey/10 px-2 py-0.5 text-[9px] font-bold text-honey-deep">
-                                                            Submitted
-                                                          </span>
-                                                          <button
-                                                            onClick={() => handleSimulateReview(task.id)}
-                                                            className="text-[8px] text-blue-500 hover:underline"
-                                                          >
-                                                            Simulate Grade
-                                                          </button>
-                                                        </div>
-                                                      )}
-                                                      {state.status === "APPROVED" && (
-                                                        <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-600 flex items-center gap-1">
-                                                          <Award className="h-3 w-3" /> Graded (95/100)
-                                                        </span>
-                                                      )}
-                                                    </>
-                                                  )
-                                                )}
-                                              </div>
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Resources */}
-                                {day.resources.length > 0 && (
-                                  <div className="space-y-2">
-                                    <p className="text-[10px] font-bold uppercase text-slate tracking-wider">References & Resources</p>
-                                    <div className="flex flex-wrap gap-2">
-                                      {day.resources.map((res) => {
-                                        const Icon = RESOURCE_ICONS[res.type] || ExternalLink;
-                                        return (
-                                          <a
-                                            key={res.id}
-                                            href={res.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-500/5 border border-blue-500/10 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 transition"
-                                            title={res.description}
-                                          >
-                                            <Icon className="h-3.5 w-3.5 shrink-0" />
-                                            <span>{res.title}</span>
-                                          </a>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </motion.div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              {!isCompleted && lc.isRequired && (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => handleMarkAsRead(lc.id)}
+                                  className="h-6 px-2.5 text-[9px] font-bold border border-navy/10"
+                                >
+                                  Mark as Completed
+                                </Button>
+                              )}
+                              {isCompleted && (
+                                <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 mr-2">
+                                  ✓ Completed
+                                </span>
+                              )}
+                              <a
+                                href={lc.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-500 hover:underline"
+                              >
+                                Open Resource <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </div>
                           )}
-                        </AnimatePresence>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
-              </>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-navy/20 p-12 text-center text-slate">
-                No active week selected. Click on a week in the navigation to begin.
+              ) : (
+                <div className="rounded-xl border border-dashed border-navy/10 p-4 text-center text-xs text-slate">
+                  No learning resources for this day. Complete any practice or build tasks to continue.
+                </div>
+              )}
+            </div>
+
+            {/* Stepper Part 2: PRACTICE Section */}
+            {hasPracticeStep && (
+              <div className="space-y-3">
+                <h4 className="text-xs font-extrabold uppercase tracking-widest text-slate">
+                  ② PRACTICE {practiceTasks.every(t => t.isRequired === false) && <span className="text-[10px] font-medium text-slate/50">(Optional step)</span>}
+                </h4>
+                
+                <div className="space-y-2">
+                  {practiceTasks.map((task) => {
+                    const state = progress[task.id] || { checked: false, status: "NOT_SUBMITTED" };
+                    return (
+                      <div
+                        key={task.id}
+                        className={cn(
+                          "rounded-xl border p-4 transition-all bg-surface-elevated flex items-start gap-3 justify-between border-navy/5",
+                          state.checked && "border-emerald-500/10 bg-emerald-500/[0.01]"
+                        )}
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={state.checked}
+                            onChange={() => toggleTaskChecked(task.id)}
+                            className="mt-1 h-4 w-4 rounded border-navy/20 accent-honey cursor-pointer shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <p className={cn("text-xs font-bold text-navy", state.checked && "line-through text-slate/50")}>
+                              {task.title}
+                            </p>
+                            <p className="text-[11px] text-slate mt-0.5 leading-relaxed">{task.description}</p>
+                          </div>
+                        </div>
+                        <span className="text-[9px] font-bold text-slate/50 shrink-0 ml-4">
+                          {task.isRequired !== false ? "Required" : "Optional"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
+
+            {/* Stepper Part 3: BUILD Section */}
+            {hasBuildStep && (
+              <div className="space-y-3">
+                <h4 className="text-xs font-extrabold uppercase tracking-widest text-slate">
+                  {hasPracticeStep ? "③ BUILD" : "② BUILD"} {buildTasks.every(t => t.isRequired === false) && <span className="text-[10px] font-medium text-slate/50">(Optional step)</span>}
+                </h4>
+                
+                <div className="space-y-3">
+                  {buildTasks.map((task) => {
+                    const state = progress[task.id] || { checked: false, status: "NOT_SUBMITTED" };
+                    const locked = !learnDone || isTaskLocked(task, activeDay.learningContent || []);
+
+                    return (
+                      <div
+                        key={task.id}
+                        className={cn(
+                          "rounded-xl border p-5 transition-all bg-surface-elevated relative overflow-hidden",
+                          locked
+                            ? "border-navy/5 opacity-60 bg-navy/[0.01]"
+                            : state.checked
+                            ? "border-emerald-500/10 bg-emerald-500/[0.01]"
+                            : "border-navy/5"
+                        )}
+                      >
+                        <div className="flex items-start gap-4 justify-between">
+                          <div className="flex items-start gap-3 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={state.checked}
+                              disabled={locked}
+                              onChange={() => toggleTaskChecked(task.id)}
+                              className="mt-1 h-4 w-4 rounded border-navy/20 accent-honey cursor-pointer shrink-0 disabled:cursor-not-allowed"
+                            />
+                            <div className="min-w-0">
+                              <p className={cn(
+                                "text-xs font-bold text-navy flex items-center gap-1.5",
+                                state.checked && "line-through text-slate/50"
+                              )}>
+                                {locked ? <Lock className="h-3.5 w-3.5 text-slate shrink-0" /> : <Unlock className="h-3.5 w-3.5 text-emerald-600 shrink-0" />}
+                                {task.title}
+                              </p>
+                              <p className="text-[11px] text-slate mt-1 leading-relaxed">{task.description}</p>
+                              
+                              {!locked && task.instructions && (
+                                <div className="mt-3 text-[10px] text-slate/85 bg-navy/[0.02] p-2.5 rounded-lg border border-navy/5">
+                                  <span className="font-bold text-navy">Instructions:</span> {task.instructions}
+                                </div>
+                              )}
+
+                              {locked && task.prerequisites && task.prerequisites.length > 0 && (
+                                <div className="mt-3 text-[9px] text-slate font-bold uppercase tracking-wider">
+                                  🔒 Locked until prerequisites are complete
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col items-end gap-1.5 shrink-0 ml-4 text-right">
+                            <span className="text-[9px] font-bold text-slate/50 bg-navy/5 px-2 py-0.5 rounded flex items-center gap-1">
+                              <Clock className="h-2.5 w-2.5" /> {task.estimatedMinutes}m
+                            </span>
+                            <span className="text-[9px] font-semibold text-slate bg-navy/5 px-2 py-0.5 rounded">
+                              {task.isRequired !== false ? "Required" : "Optional"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Submission status for individual Build tasks */}
+                        {!locked && task.requiresSubmission && (
+                          <div className="mt-4 pt-3 border-t border-navy/5 flex justify-between items-center">
+                            <span className="text-[10px] font-bold text-navy">Submission Status:</span>
+                            <div>
+                              {state.status === "NOT_SUBMITTED" && (
+                                <Button
+                                  onClick={() => handleSubmittingTask(task.id)}
+                                  size="sm"
+                                  className="h-6 px-2.5 text-[9px] font-bold"
+                                >
+                                  Submit Work
+                                </Button>
+                              )}
+                              {state.status === "SUBMITTED" && (
+                                <div className="flex items-center gap-2">
+                                  <span className="rounded bg-honey/10 px-2 py-0.5 text-[9px] font-bold text-honey-deep">
+                                    Submitted · Under Review
+                                  </span>
+                                  <button
+                                    onClick={() => handleSimulateReview(task.id)}
+                                    className="text-[8px] font-bold text-blue-500 hover:underline"
+                                  >
+                                    Simulate Review
+                                  </button>
+                                </div>
+                              )}
+                              {state.status === "APPROVED" && (
+                                <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-600 flex items-center gap-1">
+                                  <Award className="h-3.5 w-3.5" /> Graded (Pass)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Stepper Part 4: SUBMIT Section */}
+            {hasSubmitStep && (
+              <div className="space-y-3">
+                <h4 className="text-xs font-extrabold uppercase tracking-widest text-slate">
+                  {hasPracticeStep ? "④ SUBMIT" : "③ SUBMIT"}
+                </h4>
+                
+                {buildTasks.filter(t => t.requiresSubmission && t.isRequired !== false).map((task) => {
+                  const state = progress[task.id] || { checked: false, status: "NOT_SUBMITTED" };
+                  const buildNotChecked = !state.checked;
+                  const isSubmitted = state.status === "SUBMITTED" || state.status === "APPROVED";
+
+                  return (
+                    <div
+                      key={task.id}
+                      className={cn(
+                        "rounded-xl border p-5 bg-surface-elevated border-navy/5",
+                        buildNotChecked && "opacity-60"
+                      )}
+                    >
+                      <div className="flex items-center justify-between border-b border-navy/5 pb-2.5 mb-4">
+                        <h5 className="text-xs font-bold text-navy">Submit: {task.title}</h5>
+                        {buildNotChecked ? (
+                          <span className="text-[10px] text-slate/50 font-bold flex items-center gap-1">
+                            <Lock className="h-3.5 w-3.5" /> Complete BUILD task first
+                          </span>
+                        ) : isSubmitted ? (
+                          <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                            ✓ Submitted
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-honey-deep font-bold flex items-center gap-1">
+                            ● Available for Submission
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Submission Input Fields */}
+                      {!buildNotChecked && !isSubmitted && (
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-slate mb-1">GitHub Repository Link</label>
+                            <input
+                              type="text"
+                              value={githubUrl}
+                              onChange={(e) => setGithubUrl(e.target.value)}
+                              placeholder="https://github.com/username/repo"
+                              className="w-full text-xs bg-white rounded-lg border border-navy/10 px-3 py-2 outline-none focus:border-honey"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-slate mb-1">Live URL (optional)</label>
+                            <input
+                              type="text"
+                              value={liveUrl}
+                              onChange={(e) => setLiveUrl(e.target.value)}
+                              placeholder="https://my-app.vercel.app"
+                              className="w-full text-xs bg-white rounded-lg border border-navy/10 px-3 py-2 outline-none focus:border-honey"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-slate mb-1">Additional Notes</label>
+                            <textarea
+                              value={notes}
+                              onChange={(e) => setNotes(e.target.value)}
+                              placeholder="Explain details of your submission..."
+                              className="w-full text-xs bg-white rounded-lg border border-navy/10 px-3 py-2 outline-none focus:border-honey min-h-[60px]"
+                            />
+                          </div>
+                          <Button
+                            onClick={() => {
+                              handleSubmittingTask(task.id);
+                              submitTaskForm();
+                            }}
+                            className="h-8 text-xs font-bold w-full bg-navy text-white hover:bg-navy-soft"
+                          >
+                            Submit Task
+                          </Button>
+                        </div>
+                      )}
+
+                      {isSubmitted && (
+                        <div className="text-xs text-slate space-y-1.5">
+                          <p>Status: <span className="font-bold text-navy">{state.status}</span></p>
+                          <p>Thank you! Your task is currently under review by a mentor.</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Next Day Preview Card */}
+            {currentMissionIdx !== -1 && currentMissionIdx < totalDays - 1 && (
+              <div className="rounded-2xl border border-navy/5 bg-surface-elevated/40 p-5 mt-8 space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate">Up Next</span>
+                <h4 className="text-sm font-extrabold text-navy">
+                  Day {allDaysList[currentMissionIdx + 1].dayNumber}: {allDaysList[currentMissionIdx + 1].title}
+                </h4>
+                <p className="text-[11px] text-slate">
+                  {allDaysList[currentMissionIdx + 1].description}
+                </p>
+                <Button
+                  onClick={() => setPreviewDay(allDaysList[currentMissionIdx + 1])}
+                  variant="secondary"
+                  size="sm"
+                  className="h-7 text-[10px] font-bold border border-navy/10 bg-white"
+                >
+                  Preview Next Day
+                </Button>
+              </div>
+            )}
+
           </div>
         </div>
+
       </div>
+
+      {/* Curriculum View Navigation Drawer Overlay */}
+      <AnimatePresence>
+        {isDrawerOpen && (
+          <div className="fixed inset-0 z-50 flex justify-end">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.4 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsDrawerOpen(false)}
+              className="fixed inset-0 bg-black"
+            />
+            
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "tween", duration: 0.3 }}
+              className="relative z-10 w-full max-w-sm bg-surface-elevated shadow-2xl h-full flex flex-col border-l border-navy/5"
+            >
+              <div className="flex items-center justify-between border-b border-navy/5 p-4 bg-surface-elevated">
+                <div className="flex items-center gap-2 text-navy">
+                  <GraduationCap className="h-5 w-5 text-honey-deep" />
+                  <h3 className="text-sm font-extrabold">View Curriculum</h3>
+                </div>
+                <button onClick={() => setIsDrawerOpen(false)} className="rounded-lg p-1 text-slate hover:bg-navy/5">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Drawer Timeline List */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 portal-scrollbar">
+                {curriculum.phases.map((phase) => (
+                  <div key={phase.id} className="space-y-3">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate border-b border-navy/5 pb-1">
+                      {phase.title}
+                    </h4>
+                    
+                    <div className="space-y-1">
+                      {phase.weeks.map((week) => (
+                        <div key={week.id} className="space-y-1 pl-2">
+                          <h5 className="text-[10px] font-bold text-navy/70 uppercase">
+                            {week.title}
+                          </h5>
+                          
+                          <div className="space-y-1 border-l border-navy/5 pl-2">
+                            {week.days.map((day) => {
+                              const isCompleted = isDayCompleted(day);
+                              // Search index of this day in the flat list
+                              const flatIdx = allDaysList.findIndex(d => d.id === day.id);
+                              const isUnlocked = isDayUnlocked(day, flatIdx);
+                              const isToday = currentMissionDay && day.id === currentMissionDay.id;
+
+                              return (
+                                <button
+                                  key={day.id}
+                                  onClick={() => {
+                                    setPreviewDay(day);
+                                    setIsDrawerOpen(false);
+                                  }}
+                                  className={cn(
+                                    "w-full text-left rounded-lg p-2 text-xs flex items-center justify-between border transition",
+                                    isToday
+                                      ? "bg-honey/15 border-honey text-honey-deep font-bold"
+                                      : isCompleted
+                                      ? "bg-emerald-500/5 border-transparent text-emerald-600"
+                                      : !isUnlocked
+                                      ? "bg-navy/[0.01] border-transparent text-slate/40 cursor-not-allowed"
+                                      : "hover:bg-navy/[0.03] border-transparent text-navy"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2 truncate">
+                                    <span className="font-bold">Day {day.dayNumber}:</span>
+                                    <span className="truncate">{day.title}</span>
+                                  </div>
+                                  <div className="shrink-0 flex items-center gap-1.5 ml-2">
+                                    {isCompleted ? (
+                                      <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600">✓ Done</span>
+                                    ) : isToday ? (
+                                      <span className="text-[9px] font-bold uppercase tracking-wider text-honey-deep">Current</span>
+                                    ) : !isUnlocked ? (
+                                      <span className="text-[9px] font-bold uppercase tracking-wider text-slate/40">Locked</span>
+                                    ) : (
+                                      <span className="text-[9px] font-bold uppercase tracking-wider text-navy/60">Available</span>
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Student Video Lesson Player Modal */}
       {activeVideo && activeEnrollment && (
@@ -1002,15 +1182,11 @@ export default function StudentInternshipPage() {
           learningContent={activeVideo}
           enrollmentId={activeEnrollment.id}
           onCompleted={() => {
-            if (activeEnrollment) {
-              loadLearningProgress(activeEnrollment.id);
-            }
+            loadLearningProgress(activeEnrollment.id);
           }}
           onClose={() => {
             setActiveVideo(null);
-            if (activeEnrollment) {
-              loadLearningProgress(activeEnrollment.id);
-            }
+            loadLearningProgress(activeEnrollment.id);
           }}
         />
       )}
@@ -1018,7 +1194,7 @@ export default function StudentInternshipPage() {
   );
 }
 
-// ─── Student Video Player Component with playback speed and scrubbing simulation ───
+// ─── Student Video Player Component ───
 
 function getYoutubeEmbedUrl(url: string): string | null {
   if (!url) return null;
@@ -1050,9 +1226,9 @@ function StudentVideoPlayer({
   const [videoDuration, setVideoDuration] = useState(120);
   const [currentTime, setCurrentTime] = useState(0);
 
-  const ytEmbed = getYoutubeEmbedUrl(learningContent.url);
+  const videoUrl = learningContent.url || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+  const ytEmbed = getYoutubeEmbedUrl(videoUrl);
 
-  // Load progress
   useEffect(() => {
     let active = true;
     import("@/lib/learning-progress").then((LPService) => {
@@ -1081,7 +1257,6 @@ function StudentVideoPlayer({
     };
   }, [enrollmentId, learningContent.id, ytEmbed]);
 
-  // Simulate playback loop specifically for YouTube embeds when playing
   useEffect(() => {
     if (!ytEmbed) return;
     if (!isPlaying) return;
@@ -1116,7 +1291,6 @@ function StudentVideoPlayer({
     return () => clearInterval(interval);
   }, [isPlaying, playbackSpeed, videoDuration, ytEmbed, learningContent.completionThreshold, enrollmentId, learningContent.id, progress?.completed, onCompleted]);
 
-  // Sync play/pause state (direct MP4 video player)
   useEffect(() => {
     if (ytEmbed) return;
     const video = videoRef.current;
@@ -1128,7 +1302,6 @@ function StudentVideoPlayer({
     }
   }, [isPlaying, ytEmbed]);
 
-  // Sync speed state (direct MP4 video player)
   useEffect(() => {
     if (ytEmbed) return;
     const video = videoRef.current;
@@ -1212,19 +1385,19 @@ function StudentVideoPlayer({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col text-white">
+      <div className="relative z-10 w-full max-w-xl bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col text-white">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900">
           <div>
-            <h4 className="text-sm font-bold truncate max-w-md">{learningContent.title}</h4>
-            <p className="text-[10px] text-slate-400 mt-0.5">Threshold: {threshold}% completion required</p>
+            <h4 className="text-xs font-bold truncate max-w-md">{learningContent.title}</h4>
+            <p className="text-[9px] text-slate-400 mt-0.5">Threshold: {threshold}% completion required</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded-lg">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Video Canvas Container */}
+        {/* Video Canvas */}
         <div className="relative aspect-video bg-black flex items-center justify-center border-b border-slate-800">
           {ytEmbed ? (
             isPlaying ? (
@@ -1250,7 +1423,7 @@ function StudentVideoPlayer({
             <>
               <video
                 ref={videoRef}
-                src={learningContent.url}
+                src={videoUrl}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
                 onTimeUpdate={handleTimeUpdate}
@@ -1259,7 +1432,6 @@ function StudentVideoPlayer({
                 onClick={() => setIsPlaying(!isPlaying)}
               />
 
-              {/* Play/Pause Overlay */}
               {!isPlaying && (
                 <div className="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">
                   <button
@@ -1291,24 +1463,22 @@ function StudentVideoPlayer({
               {formatTime(currentTime)} / {formatTime(videoDuration)}
             </div>
 
-            {/* Slider bar */}
             <input
               type="range"
               min="0"
               max={videoDuration}
               value={currentTime}
               onChange={handleSliderChange}
-              className="flex-1 h-1.5 rounded-full bg-slate-850 accent-honey outline-none cursor-pointer"
+              className="flex-1 h-1.5 rounded-full bg-slate-800 accent-honey outline-none cursor-pointer"
             />
 
-            {/* Speed selection */}
             <div className="flex gap-1">
               {[0.5, 1, 1.5, 2].map((speed) => (
                 <button
                   key={speed}
                   onClick={() => setPlaybackSpeed(speed)}
                   className={cn(
-                    "text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-850 border transition",
+                    "text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 border transition",
                     playbackSpeed === speed ? "border-honey text-honey" : "border-slate-800 text-slate-400"
                   )}
                 >
@@ -1318,7 +1488,7 @@ function StudentVideoPlayer({
             </div>
           </div>
 
-          <div className="flex justify-between items-center text-xs border-t border-slate-800 pt-2.5">
+          <div className="flex justify-between items-center text-xs border-t border-slate-850 pt-2.5">
             <div className="flex items-center gap-1.5 text-slate-300">
               <span className="font-semibold text-white">Progress:</span> {pct}% watched
             </div>
@@ -1349,7 +1519,6 @@ function Pause(props: React.ComponentProps<"svg">) {
   );
 }
 
-// Reusable Loader
 function Loader2({ className, ...props }: React.ComponentProps<"svg">) {
   return (
     <svg

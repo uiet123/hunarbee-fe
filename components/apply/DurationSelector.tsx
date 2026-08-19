@@ -62,19 +62,20 @@ export function DurationSelector({
         role="radiogroup"
         aria-label="Duration plan"
       >
-        {(dbPlans?.length ? dbPlans : DURATION_PLANS).map((plan, index) => {
+        {(!dbPlans || dbPlans.length === 0) && (
+          <div className="col-span-full rounded-2xl border border-dashed border-navy/20 bg-surface-elevated/50 p-8 text-center">
+            <p className="text-sm font-semibold text-navy">No Plans Available</p>
+            <p className="text-xs text-slate mt-1">This program currently has no duration plans available.</p>
+          </div>
+        )}
+        {dbPlans?.map((plan, index) => {
           const selected = value === plan.id;
           
-          let localPrice: number | undefined;
-          if (dbPlans?.length) {
-             const baseInr = plan.price / 100;
-             localPrice = currency === "INR" ? baseInr : Math.ceil(baseInr * (rateFromInr || 1));
-          } else {
-             localPrice = planPrices?.[plan.id as DurationPlanId];
-          }
+          const baseInr = plan.price / 100;
+          const localPrice = currency === "INR" ? baseInr : Math.ceil(baseInr * (rateFromInr || 1));
           
-          const label = dbPlans?.length ? (plan.duration_months ? `${plan.duration_months} Months` : plan.name) : plan.label;
-          const isRecommended = dbPlans?.length ? index === 0 : plan.recommended;
+          const label = plan.duration_months ? `${plan.duration_months} Month${plan.duration_months > 1 ? 's' : ''}` : plan.name;
+          const isRecommended = index === (dbPlans.length > 1 ? 1 : 0);
 
           return (
             <motion.button
@@ -85,13 +86,12 @@ export function DurationSelector({
               whileHover={{ y: -3 }}
               whileTap={{ scale: 0.99 }}
               onClick={() => onChange(plan.id)}
-              disabled={pricingLoading || !planPrices}
+              disabled={pricingLoading}
               className={cn(
                 "relative flex h-full flex-col rounded-2xl border bg-surface-elevated/95 p-5 text-left shadow-[var(--shadow-soft)] transition-[border-color,box-shadow] duration-300",
                 selected
                   ? "border-honey/55 shadow-[0_16px_40px_rgba(245,184,0,0.18)]"
                   : "border-navy/10 hover:border-honey/35 hover:shadow-[var(--shadow-lift)]",
-                plan.recommended && !selected && "border-honey/30",
                 error && !value && "border-red-300",
                 (pricingLoading || typeof localPrice !== "number") && "opacity-70"
               )}

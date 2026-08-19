@@ -143,7 +143,7 @@ export const INITIAL_APPLICATION_FORM: ApplicationFormData = {
   occupation: "",
   preferredBatch: "",
   programId: null,
-  durationId: "3-months",
+  durationId: null,
   termsAccepted: false,
 };
 
@@ -209,7 +209,8 @@ export function sanitizeEmail(value: string): string {
 }
 
 export function validateApplicationForm(
-  data: ApplicationFormData
+  data: ApplicationFormData,
+  options?: { dbPrograms?: any[]; dbPlans?: any[] }
 ): ApplicationFormErrors {
   const errors: ApplicationFormErrors = {};
   const fullName = data.fullName.trim();
@@ -259,14 +260,22 @@ export function validateApplicationForm(
 
   if (!data.programId) {
     errors.programId = "Select an internship program";
-  } else if (!APPLY_PROGRAMS.some((item) => item.id === data.programId)) {
-    errors.programId = "Select a valid internship program";
+  } else {
+    const isStatic = APPLY_PROGRAMS.some((item) => item.id === data.programId);
+    const isDynamic = options?.dbPrograms?.some((item) => item.id === data.programId);
+    if (!isStatic && !isDynamic) {
+      errors.programId = "Select a valid internship program";
+    }
   }
 
   if (!data.durationId) {
     errors.durationId = "Select a duration plan";
-  } else if (!DURATION_PLANS.some((item) => item.id === data.durationId)) {
-    errors.durationId = "Select a valid duration plan";
+  } else {
+    const isStatic = DURATION_PLANS.some((item) => item.id === data.durationId);
+    const isDynamic = options?.dbPlans?.some((item) => item.id === data.durationId);
+    if (!isStatic && !isDynamic) {
+      errors.durationId = "Select a valid duration plan";
+    }
   }
 
   if (!data.termsAccepted) {

@@ -40,14 +40,12 @@ export function OrderSummary({
   rateFromInr,
 }: OrderSummaryProps) {
   const program = dbProgram || getProgramById(data.programId);
-  const plan = dbPlans?.find(p => p.id === data.durationId) || getPlanById(data.durationId);
+  const plan = dbPlans?.find(p => p.id === data.durationId);
   
   let localTotal: number | null = null;
-  if (dbPlans?.length && plan) {
+  if (plan) {
     const baseInr = plan.price / 100;
     localTotal = currency === "INR" ? baseInr : Math.ceil(baseInr * (rateFromInr || 1));
-  } else if (plan && planPrices) {
-    localTotal = planPrices[plan.id];
   }
 
   return (
@@ -118,7 +116,7 @@ export function OrderSummary({
         type="button"
         size="lg"
         className="mt-6 w-full text-base"
-        disabled={loading || (dbPlans?.length ? false : !planPrices)}
+        disabled={loading || !plan}
         onClick={onContinue}
       >
         {loading ? (
